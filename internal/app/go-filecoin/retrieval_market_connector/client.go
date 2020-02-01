@@ -1,4 +1,4 @@
-package retrievalmarketconnector
+package retrieval_market_connector
 
 import (
 	"bytes"
@@ -22,20 +22,21 @@ import (
 )
 
 type RetrievalClientNodeConnector struct {
-	bg         balanceGetter
 	bs         *blockstore.Blockstore
 	cs         *chain.Store
 	laneReg    map[address.Address]uint64
 	laneRegLk  sync.RWMutex
-	mw         msgWaiter
-	outbox     msgSender
 	pmtChanReg map[address.Address]pmtChanEntry
 	pmChanLk   sync.RWMutex
-	ps         *piecestore.PieceStore
-	sm         smAPI
-	signer     byteSigner
-	actAPI     actorAPI
-	wg         walletGetter
+
+	// APIs/interfaces
+	actAPI actorAPI
+	signer byteSigner
+	mw     msgWaiter
+	outbox msgSender
+	ps     piecestore.PieceStore
+	sm     smAPI
+	wal    walletAPI
 }
 
 // pmtChanEntry is a record of a created payment channel with funds available.
@@ -54,8 +55,6 @@ type smAPI interface {
 	// UnsealSector(ctx context.Context, sectorID uint64) (io.ReadCloser, error)
 }
 
-type balanceGetter func(ctx context.Context, address address.Address) (types.AttoFIL, error)
-
 type actorAPI interface {
 	// GetWorkerAddress gets the go-filecoin address of a (miner) worker owned by addr
 	GetWorkerAddress(ctx context.Context, addr fcaddr.Address, baseKey block.TipSetKey) (fcaddr.Address, error)
@@ -68,10 +67,13 @@ type msgWaiter interface {
 }
 
 type msgSender interface {
+	// Send sends a message to the chain
 	Send(ctx context.Context, from, to fcaddr.Address, value types.AttoFIL,
 		gasPrice types.AttoFIL, gasLimit types.GasUnits, bcast bool, method types.MethodID, params ...interface{}) (out cid.Cid, pubErrCh chan error, err error)
 }
-type walletGetter interface {
+type walletAPI interface {
+	// GetBalance gets the balance in AttoFIL for a given address
+	GetBalance(ctx context.Context, address fcaddr.Address) (types.AttoFIL, error)
 	// GetDefaultWalletAddress retrieves the wallet addressed used to sign data and pay fees
 	GetDefaultWalletAddress() (fcaddr.Address, error)
 }
@@ -82,18 +84,17 @@ type byteSigner interface {
 }
 
 func NewRetrievalClientNodeConnector(
-	bg balanceGetter,
 	bs *blockstore.Blockstore,
 	cs *chain.Store,
 	mw msgWaiter,
 	ob msgSender,
-	ps *piecestore.PieceStore,
+	ps piecestore.PieceStore,
 	sm smAPI,
 	signer byteSigner,
 	aapi actorAPI,
+	wal walletAPI,
 ) *RetrievalClientNodeConnector {
 	return &RetrievalClientNodeConnector{
-		bg:         bg,
 		bs:         bs,
 		cs:         cs,
 		laneReg:    make(map[address.Address]uint64),
@@ -104,6 +105,7 @@ func NewRetrievalClientNodeConnector(
 		sm:         sm,
 		signer:     signer,
 		actAPI:     aapi,
+		wal:        wal,
 	}
 }
 
@@ -112,7 +114,11 @@ func NewRetrievalClientNodeConnector(
 // Blocks until message is mined?
 func (r *RetrievalClientNodeConnector) GetOrCreatePaymentChannel(ctx context.Context, clientWallet address.Address, minerWallet address.Address, clientFundsAvailable tokenamount.TokenAmount) (address.Address, error) {
 
-	bal, err := r.bg(ctx, clientWallet)
+	fcClientAddr, err := fcaddr.NewFromBytes(clientWallet.Bytes())
+	if err != nil {
+		return address.Undef, err
+	}
+	bal, err := r.wal.GetBalance(ctx, fcClientAddr)
 	if err != nil {
 		return address.Undef, err
 	}
@@ -227,6 +233,29 @@ func (r *RetrievalClientNodeConnector) CreatePaymentVoucher(ctx context.Context,
 	return v, nil
 }
 
+func (r *RetrievalClientNodeConnector) ListRegisteredChannels() []address.Address {
+	r.pmChanLk.RLock()
+	defer r.pmChanLk.RUnlock()
+	list := make([]address.Address, len(r.pmtChanReg))
+	i := 0
+	for k := range r.pmtChanReg {
+		list[i] = k
+		i++
+	}
+	return list
+}
+func (r *RetrievalClientNodeConnector) ListRegisteredLanes() []address.Address {
+	r.laneRegLk.RLock()
+	defer r.laneRegLk.RUnlock()
+	list := make([]address.Address, len(r.laneReg))
+	i := 0
+	for k := range r.pmtChanReg {
+		list[i] = k
+		i++
+	}
+	return list
+}
+
 func (r *RetrievalClientNodeConnector) createSignedVoucher(lane uint64, nonce uint64, amount tokenamount.TokenAmount, height uint64) (*gfm_types.SignedVoucher, error) {
 	v := gfm_types.SignedVoucher{
 		TimeLock:       0,   // TODO
@@ -243,7 +272,7 @@ func (r *RetrievalClientNodeConnector) createSignedVoucher(lane uint64, nonce ui
 		return nil, err
 	}
 
-	signingAddr, err := r.wg.GetDefaultWalletAddress()
+	signingAddr, err := r.wal.GetDefaultWalletAddress()
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +292,7 @@ func (r *RetrievalClientNodeConnector) createSignedVoucher(lane uint64, nonce ui
 // updatePaymentChannelEntry updates the entry with the result of the payment channel creation message
 func (r *RetrievalClientNodeConnector) updatePaymentChannelEntry(_ *block.Block, sm *types.SignedMessage, mr *types.MessageReceipt) error {
 
-	to, err := address.NewFromBytes(sm.Message.To.Bytes())
+	to, err := address.NewFromBytes(sm.Message.From.Bytes())
 	if err != nil {
 		return err // should never happen
 	}
@@ -297,7 +326,8 @@ func (r *RetrievalClientNodeConnector) updatePaymentChannelEntry(_ *block.Block,
 }
 
 func (r *RetrievalClientNodeConnector) getBlockHeight() (uint64, error) {
-	ts, err := r.cs.GetTipSet(r.cs.GetHead())
+	head := r.cs.GetHead()
+	ts, err := r.cs.GetTipSet(head)
 	if err != nil {
 		return 0, err
 	}
