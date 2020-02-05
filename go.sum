@@ -135,6 +135,8 @@ github.com/filecoin-project/go-address v0.0.0-20200107215422-da8eea2842b5 h1:/Mm
 github.com/filecoin-project/go-address v0.0.0-20200107215422-da8eea2842b5/go.mod h1:SAOwJoakQ8EPjwNIsiakIQKsoKdkcbx8U3IapgCg9R0=
 github.com/filecoin-project/go-amt-ipld v0.0.0-20190920035751-ae3c37184616 h1:e0P1b9Lam9oA7TC/YBoR23uMsDuMLQU3iTvUJXmDaqM=
 github.com/filecoin-project/go-amt-ipld v0.0.0-20190920035751-ae3c37184616/go.mod h1:lKjJYPg2kwbav5f78i5YA8kGccnZn18IySbpneXvaQs=
+github.com/filecoin-project/go-bls-sigs v0.0.0-20191126221701-443b5348d38e h1:pDR6sIedVzB3WiSmPrP+glqU9vYxy/381DxxAWlNQ4Q=
+github.com/filecoin-project/go-bls-sigs v0.0.0-20191126221701-443b5348d38e/go.mod h1:y5euLUNwRkoJSdnkDi5ZxFzrysgu1JkSRfwotVM87PE=
 github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2 h1:av5fw6wmm58FYMgJeoB/lK9XXrgdugYiTqkdxjTy9k8=
 github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2/go.mod h1:pqTiPHobNkOVM5thSRsHYjyQfq7O5QSCMhvuu9JoDlg=
 github.com/filecoin-project/go-crypto v0.0.0-20191218222705-effae4ea9f03 h1:2pMXdBnCiXjfCYx/hLqFxccPoqsSveQFxVLvNxy9bus=
