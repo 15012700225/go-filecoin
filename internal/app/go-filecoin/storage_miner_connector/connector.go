@@ -93,6 +93,8 @@ func (m *StorageMinerNodeConnector) StopHeightListener() {
 	m.listenerDone <- struct{}{}
 }
 
+// CancelHeightListener removes on
+
 func (m *StorageMinerNodeConnector) handleNewTipSet(ctx context.Context, previousHead block.TipSet) (block.TipSet, error) {
 	newHeadKey := m.chainStore.GetHead()
 	newHead, err := m.chainStore.GetTipSet(newHeadKey)
@@ -107,7 +109,7 @@ func (m *StorageMinerNodeConnector) handleNewTipSet(ctx context.Context, previou
 
 	newListeners := make([]*chainsampler.HeightThresholdListener, len(m.heightListeners))
 	for _, listener := range m.heightListeners {
-		valid, err := listener.Handle(ctx, newTips, m.chainState.SampleRandomness)
+		valid, err := listener.Handle(ctx, newTips)
 		if err != nil {
 			log.Error("Error checking storage miner chainStore listener", err)
 		}
@@ -351,6 +353,7 @@ func (m *StorageMinerNodeConnector) GetSealTicket(ctx context.Context) (storage.
 // computing and sampling a seed.
 func (m *StorageMinerNodeConnector) GetSealSeed(ctx context.Context, preCommitMsg cid.Cid, interval uint64) (seed <-chan storage.SealSeed, err <-chan error, invalidated <-chan struct{}, done <-chan struct{}) {
 	sc := make(chan storage.SealSeed)
+	hc := make(chan block.TipSetKey)
 	ec := make(chan error)
 	ic := make(chan struct{})
 	dc := make(chan struct{})
@@ -367,7 +370,42 @@ func (m *StorageMinerNodeConnector) GetSealSeed(ctx context.Context, preCommitMs
 			return
 		}
 
-		m.newListener <- chainsampler.NewHeightThresholdListener(h+interval, sc, ec, ic, dc)
+		m.newListener <- chainsampler.NewHeightThresholdListener(h+interval, hc, ec, ic, dc)
+	}()
+
+	// translate tipset key to seal seed handler
+	go func() {
+		for {
+			select {
+			case key := <-hc:
+				ts, err := m.chainState.GetTipSet(key)
+				if err != nil {
+					ec <- err
+					break
+				}
+
+				tsHeight, err := ts.Height()
+				if err != nil {
+					ec <- err
+					break
+				}
+
+				randomness, err := m.chainState.SampleRandomness(ctx, types.NewBlockHeight(tsHeight))
+				if err != nil {
+					ec <- err
+					break
+				}
+
+				sc <- storage.SealSeed{
+					BlockHeight: tsHeight,
+					TicketBytes: randomness,
+				}
+			case <-dc:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
 	}()
 
 	return sc, ec, ic, dc
