@@ -14,7 +14,7 @@ import (
 	smtypes "github.com/filecoin-project/go-fil-markets/shared/types"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	spaabi "github.com/filecoin-project/specs-actors/actors/abi"
-	spasm "github.com/filecoin-project/specs-actors/actors/builtin/storage_market"
+	spasm "github.com/filecoin-project/specs-actors/actors/builtin/market"
 	spautil "github.com/filecoin-project/specs-actors/actors/util"
 	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
@@ -22,7 +22,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/plumbing/msg"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/block"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	fcsm "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/wallet"
 )
@@ -117,7 +116,7 @@ func (c *connectorCommon) addFunds(ctx context.Context, fromAddr address.Address
 		types.NewGasPrice(1),
 		types.NewGasUnits(300),
 		true,
-		fcsm.AddBalance,
+		integration.Method_Market_AddBalance,
 		params,
 	)
 	if err != nil {
@@ -151,7 +150,7 @@ func (c *connectorCommon) SignBytes(ctx context.Context, signer address.Address,
 }
 
 func (c *connectorCommon) GetBalance(ctx context.Context, addr address.Address) (storagemarket.Balance, error) {
-	var smState spasm.StorageMarketActorState
+	var smState spasm.State
 	err := c.chainStore.GetActorStateAt(ctx, c.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
 	if err != nil {
 		return storagemarket.Balance{}, err
@@ -190,7 +189,7 @@ func (c *connectorCommon) OnDealSectorCommitted(ctx context.Context, provider ad
 
 	pred := func(msg *types.SignedMessage, msgCid cid.Cid) bool {
 		m := msg.Message
-		if m.Method != fcsm.CommitSector {
+		if m.Method != spasm.CommitSector {
 			return false
 		}
 
@@ -246,7 +245,7 @@ func decodeSectorID(msg *types.SignedMessage) (uint64, error) {
 }
 
 func (c *connectorCommon) listDeals(ctx context.Context, addr address.Address) ([]storagemarket.StorageDeal, error) {
-	var smState spasm.StorageMarketActorState
+	var smState spasm.State
 	err := c.chainStore.GetActorStateAt(ctx, c.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
 	if err != nil {
 		return nil, err

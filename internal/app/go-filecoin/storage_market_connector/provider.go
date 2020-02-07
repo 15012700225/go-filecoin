@@ -9,8 +9,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-fil-markets/shared/tokenamount"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
-	spasm "github.com/filecoin-project/specs-actors/actors/builtin/storage_market"
-	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/storage_miner"
+	spasm "github.com/filecoin-project/specs-actors/actors/builtin/market"
+	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
 
@@ -19,7 +19,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/piecemanager"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
-	fcsm "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/wallet"
 )
@@ -115,7 +114,7 @@ func (s *StorageProviderNodeConnector) PublishDeals(ctx context.Context, deal st
 		types.NewGasPrice(1),
 		types.NewGasUnits(300),
 		true,
-		fcsm.PublishStorageDeals,
+		integration.Method_Market_PublishStorageDeals,
 		params,
 	)
 	if err != nil {
@@ -159,13 +158,13 @@ func (s *StorageProviderNodeConnector) OnDealComplete(ctx context.Context, deal 
 
 // LocatePieceForDealWithinSector finds the sector, offset and length of a piece associated with the given deal id
 func (s *StorageProviderNodeConnector) LocatePieceForDealWithinSector(ctx context.Context, dealID uint64) (sectorNumber uint64, offset uint64, length uint64, err error) {
-	var smState spasm.StorageMarketActorState
+	var smState spasm.State
 	err = s.chainStore.GetActorStateAt(ctx, s.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
 	if err != nil {
 		return 0, 0, 0, err
 	}
 
-	var minerState spaminer.StorageMinerActorState
+	var minerState spaminer.State
 	err = s.chainStore.GetActorStateAt(ctx, s.chainStore.Head(), s.minerAddr, &minerState)
 	if err != nil {
 		return 0, 0, 0, err

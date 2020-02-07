@@ -12,9 +12,8 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
-	fcsm "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
-	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/storage_miner"
-	spapow "github.com/filecoin-project/specs-actors/actors/builtin/storage_power"
+	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	spapow "github.com/filecoin-project/specs-actors/actors/builtin/power"
 
 	"github.com/filecoin-project/go-fil-markets/shared/tokenamount"
 	smtypes "github.com/filecoin-project/go-fil-markets/shared/types"
@@ -99,7 +98,7 @@ func (s *StorageClientNodeConnector) ListStorageProviders(ctx context.Context) (
 			return err
 		}
 
-		var mState spaminer.StorageMinerActorState
+		var mState spaminer.State
 		err = s.chainStore.GetActorStateAt(ctx, head, minerAddr, &mState)
 		if err != nil {
 			return err
@@ -152,7 +151,7 @@ func (s *StorageClientNodeConnector) ValidatePublishedDeal(ctx context.Context, 
 		return 0, xerrors.Errorf("deal publish message wasn't set to StorageMarket actor (to=%s)", unsigned.To)
 	}
 
-	if unsigned.Method != fcsm.PublishStorageDeals {
+	if unsigned.Method != integration.Method_Market_PublishStorageDeals {
 		return 0, xerrors.Errorf("deal publish message called incorrect method (method=%s)", unsigned.Method)
 	}
 

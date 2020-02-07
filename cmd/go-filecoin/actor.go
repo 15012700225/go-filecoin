@@ -8,11 +8,11 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/account"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/initactor"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/miner"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/power"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
+	"github.com/filecoin-project/specs-actors/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 
 	"github.com/ipfs/go-cid"
 	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
@@ -58,9 +58,9 @@ var actorLsCmd = &cmds.Command{
 			case result.Actor.Code.Equals(types.AccountActorCodeCid):
 				output = makeActorView(result.Actor, result.Address, &account.Actor{})
 			case result.Actor.Code.Equals(types.InitActorCodeCid):
-				output = makeActorView(result.Actor, result.Address, &initactor.Actor{})
+				output = makeActorView(result.Actor, result.Address, &init.Actor{})
 			case result.Actor.Code.Equals(types.StorageMarketActorCodeCid):
-				output = makeActorView(result.Actor, result.Address, &storagemarket.Actor{})
+				output = makeActorView(result.Actor, result.Address, &market.Actor{})
 			case result.Actor.Code.Equals(types.PowerActorCodeCid):
 				output = makeActorView(result.Actor, result.Address, &power.Actor{})
 			case result.Actor.Code.Equals(types.MinerActorCodeCid):

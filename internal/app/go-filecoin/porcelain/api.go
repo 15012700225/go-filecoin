@@ -16,7 +16,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/plumbing"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/protocol/storage/storagedeal"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	minerActor "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/miner"
+	minerActor "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 )
 
 // API is the porcelain implementation, a set of convenience calls written on the

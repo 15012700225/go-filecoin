@@ -25,7 +25,7 @@ require (
 	github.com/filecoin-project/go-sectorbuilder v0.0.2-0.20200114015900-4103afa82689
 	github.com/filecoin-project/go-statestore v0.1.0
 	github.com/filecoin-project/go-storage-miner v0.0.0-20200122233640-6a01988b8217
-	github.com/filecoin-project/specs-actors v0.0.0-20200129043607-2106ca04a5c9
+	github.com/filecoin-project/specs-actors v0.0.0-20200207002225-301c089ba033
 	github.com/go-check/check v0.0.0-20190902080502-41f04d3bba15 // indirect
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/golangci/golangci-lint v1.21.0
@@ -41,7 +41,7 @@ require (
 	github.com/ipfs/go-ds-badger v0.0.7
 	github.com/ipfs/go-fs-lock v0.0.1
 	github.com/ipfs/go-graphsync v0.0.4
-	github.com/ipfs/go-hamt-ipld v0.0.14
+	github.com/ipfs/go-hamt-ipld v0.0.15-0.20200131012125-dd88a59d3f2e
 	github.com/ipfs/go-ipfs-blockstore v0.1.1
 	github.com/ipfs/go-ipfs-chunker v0.0.1
 	github.com/ipfs/go-ipfs-cmdkit v0.0.1
@@ -51,7 +51,7 @@ require (
 	github.com/ipfs/go-ipfs-files v0.0.4
 	github.com/ipfs/go-ipfs-keystore v0.0.1
 	github.com/ipfs/go-ipfs-routing v0.1.0
-	github.com/ipfs/go-ipld-cbor v0.0.3
+	github.com/ipfs/go-ipld-cbor v0.0.4
 	github.com/ipfs/go-ipld-format v0.0.2
 	github.com/ipfs/go-log v1.0.1
 	github.com/ipfs/go-log/v2 v2.0.2 // indirect
@@ -100,7 +100,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.5.0 // indirect
 	github.com/stretchr/testify v1.4.0
-	github.com/whyrusleeping/cbor-gen v0.0.0-20200123233031-1cdf64d27158
+	github.com/whyrusleeping/cbor-gen v0.0.0-20200206220010-03c9665e2a66
 	github.com/whyrusleeping/go-logging v0.0.1
 	github.com/whyrusleeping/go-sysinfo v0.0.0-20190219211824-4a357d4b90b1
 	go.opencensus.io v0.22.2

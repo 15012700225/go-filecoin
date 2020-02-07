@@ -3,7 +3,6 @@ package submodule
 import (
 	"context"
 
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 	"github.com/ipfs/go-cid"
 
@@ -60,7 +59,7 @@ func NewChainSubmodule(ctx context.Context, config chainConfig, repo chainRepo, 
 
 	actorState := consensus.NewActorStateStore(chainStore, blockstore.CborStore, blockstore.Blockstore, processor)
 	messageStore := chain.NewMessageStore(blockstore.Blockstore)
-	chainState := cst.NewChainStateReadWriter(chainStore, messageStore, blockstore.Blockstore, builtin.DefaultActors)
+	chainState := cst.NewChainStateReadWriter(chainStore, messageStore, blockstore.Blockstore, vm.DefaultActors)
 
 	return ChainSubmodule{
 		ChainReader:  chainStore,

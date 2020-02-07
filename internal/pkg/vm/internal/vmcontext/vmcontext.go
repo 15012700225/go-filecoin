@@ -8,11 +8,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/cron"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/initactor"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/miner"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/reward"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemining"
+	"github.com/filecoin-project/specs-actors/actors/builtin/cron"
+	"github.com/filecoin-project/specs-actors/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/actors/builtin/storagemining"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/dispatch"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/exitcode"
@@ -45,7 +45,7 @@ type RandomnessSource interface {
 
 // ActorImplLookup provides access to upgradeable actor code.
 type ActorImplLookup interface {
-	GetActorImpl(code cid.Cid, epoch types.BlockHeight) (dispatch.ExecutableActor, error)
+	GetActorImpl(code cid.Cid, epoch types.BlockHeight) (dispatch.Dispatch, error)
 }
 
 // MinerPenaltyFIL is just a alias for FIL used to penalize the miner
@@ -491,7 +491,7 @@ func (vm *VM) transfer(debitFrom address.Address, creditTo address.Address, amou
 	return
 }
 
-func (vm *VM) getActorImpl(code cid.Cid) dispatch.ExecutableActor {
+func (vm *VM) getActorImpl(code cid.Cid) dispatch.Dispatch {
 	actorImpl, err := vm.actorImpls.GetActorImpl(code, vm.currentEpoch)
 	if err != nil {
 		runtime.Abort(exitcode.ActorCodeNotFound)

@@ -25,7 +25,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 )
 
@@ -45,7 +44,7 @@ type ChainStateReadWriter struct {
 	readWriter      chainReadWriter
 	bstore          blockstore.Blockstore // Provides chain blocks.
 	messageProvider chain.MessageProvider
-	actors          builtin.Actors
+	actors          vm.ActorCodeLoader
 }
 
 type carStore struct {
@@ -81,7 +80,7 @@ var (
 )
 
 // NewChainStateReadWriter returns a new ChainStateReadWriter.
-func NewChainStateReadWriter(crw chainReadWriter, messages chain.MessageProvider, bs blockstore.Blockstore, ba builtin.Actors) *ChainStateReadWriter {
+func NewChainStateReadWriter(crw chainReadWriter, messages chain.MessageProvider, bs blockstore.Blockstore, ba vm.ActorCodeLoader) *ChainStateReadWriter {
 	return &ChainStateReadWriter{
 		readWriter:      crw,
 		bstore:          bs,
