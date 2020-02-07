@@ -14,6 +14,7 @@ import (
 	xerrors "github.com/pkg/errors"
 )
 
+// RetrievalProviderConnector is the glue between go-filecoin and retrieval market provider API
 type RetrievalProviderConnector struct {
 	vs  map[string]voucherEntry
 	ps  piecestore.PieceStore
@@ -30,7 +31,7 @@ type voucherEntry struct {
 	expectedAmt tokenamount.TokenAmount
 }
 
-
+// NewRetrievalProviderNodeConnector creates a new RetrievalProviderNodeConnector
 func NewRetrievalProviderNodeConnector(network rmnet.RetrievalMarketNetwork, pieceStore piecestore.PieceStore, bs blockstore.Blockstore) *RetrievalProviderConnector {
 	return &RetrievalProviderConnector{
 		vs:  make(map[string]voucherEntry),
@@ -40,10 +41,12 @@ func NewRetrievalProviderNodeConnector(network rmnet.RetrievalMarketNetwork, pie
 	}
 }
 
-func (r *RetrievalProviderConnector) UnsealSector(ctx context.Context, sectorId uint64, offset uint64, length uint64) (io.ReadCloser, error) {
+// UnsealSector unseals the sector given by sectorId and offset with length `length`
+func (r *RetrievalProviderConnector) UnsealSector(ctx context.Context, sectorID uint64, offset uint64, length uint64) (io.ReadCloser, error) {
 	panic("implement me")
 }
 
+// SavePaymentVoucher stores the provided payment voucher with the payment channel actor
 func (r *RetrievalProviderConnector) SavePaymentVoucher(_ context.Context, paymentChannel address.Address, voucher *rtypes.SignedVoucher, proof []byte, expectedAmount tokenamount.TokenAmount) (tokenamount.TokenAmount, error) {
 	var tokenamt tokenamount.TokenAmount
 
@@ -63,6 +66,7 @@ func (r *RetrievalProviderConnector) SavePaymentVoucher(_ context.Context, payme
 	return voucher.Amount, nil
 }
 
+// voucherStoreKeyFor converts a signed voucher to a store key
 func (r *RetrievalProviderConnector) voucherStoreKeyFor(voucher *rtypes.SignedVoucher) (string, error) {
 	venc, err := voucher.EncodedString()
 	if err != nil {
