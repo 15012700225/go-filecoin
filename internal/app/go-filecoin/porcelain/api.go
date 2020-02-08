@@ -3,7 +3,6 @@ package porcelain
 import (
 	"context"
 	"io"
-	"math/big"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -16,7 +15,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/plumbing"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/protocol/storage/storagedeal"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	minerActor "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 )
 
 // API is the porcelain implementation, a set of convenience calls written on the
@@ -53,7 +51,7 @@ func (a *API) ActorGetStable(ctx context.Context, addr address.Address) (*actor.
 }
 
 // ActorGetStableSignature gets an actor signature by address, converting the address to an id address if necessary
-func (a *API) ActorGetStableSignature(ctx context.Context, actorAddr address.Address, method types.MethodID) (_ *vm.FunctionSignature, err error) {
+func (a *API) ActorGetStableSignature(ctx context.Context, actorAddr address.Address, method types.MethodID) (_ *vm.ActorMethodSignature, err error) {
 	return GetStableActorSignature(ctx, a, actorAddr, method)
 }
 
@@ -81,96 +79,6 @@ func (a *API) DealsLs(ctx context.Context) (<-chan *StorageDealLsResult, error) 
 // It's useful for integration testing.
 func (a *API) MessagePoolWait(ctx context.Context, messageCount uint) ([]*types.SignedMessage, error) {
 	return MessagePoolWait(ctx, a, messageCount)
-}
-
-// MinerCreate creates a miner
-func (a *API) MinerCreate(
-	ctx context.Context,
-	accountAddr address.Address,
-	gasPrice types.AttoFIL,
-	gasLimit types.GasUnits,
-	sectorSize *types.BytesAmount,
-	pid peer.ID,
-	collateral types.AttoFIL,
-) (_ *address.Address, err error) {
-	return MinerCreate(ctx, a, accountAddr, gasPrice, gasLimit, sectorSize, pid, collateral)
-}
-
-// MinerPreviewCreate previews the Gas cost of creating a miner
-func (a *API) MinerPreviewCreate(
-	ctx context.Context,
-	fromAddr address.Address,
-	sectorSize *types.BytesAmount,
-	pid peer.ID,
-) (usedGas types.GasUnits, err error) {
-	return MinerPreviewCreate(ctx, a, fromAddr, sectorSize, pid)
-}
-
-// MinerGetAsk queries for an ask of the given miner
-func (a *API) MinerGetAsk(ctx context.Context, minerAddr address.Address, askID uint64) (minerActor.Ask, error) {
-	return MinerGetAsk(ctx, a, minerAddr, askID)
-}
-
-// MinerGetOwnerAddress queries for the owner address of the given miner
-func (a *API) MinerGetOwnerAddress(ctx context.Context, minerAddr address.Address) (address.Address, error) {
-	return MinerGetOwnerAddress(ctx, a, minerAddr)
-}
-
-// MinerGetWorkerAddress queries for the worker address of the given miner
-func (a *API) MinerGetWorkerAddress(ctx context.Context, minerAddr address.Address, baseKey block.TipSetKey) (address.Address, error) {
-	return MinerGetWorkerAddress(ctx, a, minerAddr, baseKey)
-}
-
-// MinerGetSectorSize queries for the sector size of the given miner.
-func (a *API) MinerGetSectorSize(ctx context.Context, minerAddr address.Address) (*types.BytesAmount, error) {
-	return MinerGetSectorSize(ctx, a, minerAddr)
-}
-
-// MinerCalculateLateFee queries for the fee required for a PoSt submitted at some height.
-func (a *API) MinerCalculateLateFee(ctx context.Context, minerAddr address.Address, height *types.BlockHeight) (types.AttoFIL, error) {
-	return MinerCalculateLateFee(ctx, a, minerAddr, height)
-}
-
-// MinerGetLastCommittedSectorID queries for the sector size of the given miner.
-func (a *API) MinerGetLastCommittedSectorID(ctx context.Context, minerAddr address.Address) (uint64, error) {
-	return MinerGetLastCommittedSectorID(ctx, a, minerAddr)
-}
-
-// MinerGetPeerID queries for the peer id of the given miner
-func (a *API) MinerGetPeerID(ctx context.Context, minerAddr address.Address) (peer.ID, error) {
-	return MinerGetPeerID(ctx, a, minerAddr)
-}
-
-// MinerSetPrice configures the price of storage. See implementation for details.
-func (a *API) MinerSetPrice(ctx context.Context, from address.Address, miner address.Address, gasPrice types.AttoFIL, gasLimit types.GasUnits, price types.AttoFIL, expiry *big.Int) (MinerSetPriceResponse, error) {
-	return MinerSetPrice(ctx, a, from, miner, gasPrice, gasLimit, price, expiry)
-}
-
-// MinerGetPower queries for the power of the given miner
-func (a *API) MinerGetPower(ctx context.Context, minerAddr address.Address) (MinerPower, error) {
-	return MinerGetPower(ctx, a, minerAddr)
-}
-
-// MinerGetProvingWindow queries for the proving period of the given miner
-func (a *API) MinerGetProvingWindow(ctx context.Context, minerAddr address.Address) (MinerProvingWindow, error) {
-	return MinerGetProvingWindow(ctx, a, minerAddr)
-}
-
-// MinerGetCollateral queries for the proving period of the given miner
-func (a *API) MinerGetCollateral(ctx context.Context, minerAddr address.Address) (types.AttoFIL, error) {
-	return MinerGetCollateral(ctx, a, minerAddr)
-}
-
-// MinerPreviewSetPrice calculates the amount of Gas needed for a call to MinerSetPrice.
-// This method accepts all the same arguments as MinerSetPrice.
-func (a *API) MinerPreviewSetPrice(
-	ctx context.Context,
-	from address.Address,
-	miner address.Address,
-	price types.AttoFIL,
-	expiry *big.Int,
-) (types.GasUnits, error) {
-	return MinerPreviewSetPrice(ctx, a, from, miner, price, expiry)
 }
 
 // ProtocolParameters fetches the current protocol configuration parameters.
@@ -212,11 +120,6 @@ func (a *API) PingMinerWithTimeout(
 	timeout time.Duration,
 ) error {
 	return PingMinerWithTimeout(ctx, minerPID, timeout, a)
-}
-
-// MinerSetWorkerAddress sets the miner worker address to the provided address
-func (a *API) MinerSetWorkerAddress(ctx context.Context, toAddr address.Address, gasPrice types.AttoFIL, gasLimit types.GasUnits) (cid.Cid, error) {
-	return MinerSetWorkerAddress(ctx, a, toAddr, gasPrice, gasLimit)
 }
 
 // MessageWaitDone blocks until the message is on chain

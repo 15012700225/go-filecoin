@@ -11,13 +11,13 @@ import (
 	xerrors "github.com/pkg/errors"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	spapow "github.com/filecoin-project/specs-actors/actors/builtin/power"
 
 	"github.com/filecoin-project/go-fil-markets/shared/tokenamount"
 	smtypes "github.com/filecoin-project/go-fil-markets/shared/types"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
+	cbor "github.com/ipfs/go-ipld-cbor"
 
 	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/plumbing/msg"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/message"
@@ -31,14 +31,14 @@ type StorageClientNodeConnector struct {
 	connectorCommon
 
 	clientAddr address.Address
-	cborStore  hamt.CborIpldStore
+	cborStore  cbor.IpldStore
 }
 
 var _ storagemarket.StorageClientNode = &StorageClientNodeConnector{}
 
 // NewStorageClientNodeConnector creates a new connector
 func NewStorageClientNodeConnector(
-	cbor hamt.CborIpldStore,
+	cbor cbor.IpldStore,
 	cs chainReader,
 	w *msg.Waiter,
 	wlt *wallet.Wallet,
@@ -155,14 +155,11 @@ func (s *StorageClientNodeConnector) ValidatePublishedDeal(ctx context.Context, 
 		return 0, xerrors.Errorf("deal publish message called incorrect method (method=%s)", unsigned.Method)
 	}
 
-	values, err := abi.DecodeValues(unsigned.Params, []abi.Type{abi.StorageDealProposals})
-	if err != nil {
-		return 0, err
+	// TODO: Support more than one deal
+	var proposal market.DealProposal
+	if err := encoding.Decode(unsigned.Params, &proposal) {
+
 	}
-
-	msgProposals := values[0].Val.([]types.StorageDealProposal)
-
-	proposal := msgProposals[0] // TODO: Support more than one deal
 
 	// TODO: find a better way to do this
 	equals := bytes.Equal(proposal.PieceRef, deal.Proposal.PieceRef) &&
@@ -176,14 +173,9 @@ func (s *StorageClientNodeConnector) ValidatePublishedDeal(ctx context.Context, 
 		bytes.Equal([]byte(*proposal.ProposerSignature), deal.Proposal.ProposerSignature.Data)
 
 	if equals {
-		sectorIDVal, err := abi.Deserialize(chnMsg.Receipt.Return[0], abi.SectorID)
-		if err != nil {
+		var sectorID abi.SectorID
+		if err := encoding.Decode.Deserialize(chnMsg.Receipt.Return[0], &sectorID); err != nil {
 			return 0, err
-		}
-
-		sectorID, ok := sectorIDVal.Val.(uint64)
-		if !ok {
-			return 0, xerrors.New("publish deal return is not a sector ID")
 		}
 		return sectorID, nil
 	}

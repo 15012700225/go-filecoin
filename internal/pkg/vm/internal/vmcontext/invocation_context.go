@@ -1,23 +1,21 @@
 package vmcontext
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 
 	"github.com/filecoin-project/go-address"
 
+	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor"
-	"github.com/filecoin-project/specs-actors/actors/builtin/init"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/exitcode"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/gas"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/gascost"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/message"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/runtime"
+	notinit "github.com/filecoin-project/specs-actors/actors/builtin/init"
 	"github.com/ipfs/go-cid"
 )
 
@@ -94,24 +92,10 @@ func (ctx *invocationContext) invoke() interface{} {
 	ctx.stateHandle = &stateHandle
 
 	// dispatch
-	// 1. check method exists
-	// 2. invoke method on actor
-
-	// 1. check method exists
-	exportedFn, ok := makeTypedExport(actorImpl, ctx.msg.method)
-	if !ok {
-		runtime.Abort(exitcode.InvalidMethod)
-	}
-
-	// 2. invoke method on actor
-	vals, code, err := exportedFn(ctx)
-
-	// handle legacy errors and codes
+	ret, err := actorImpl.Dispatch(ctx.msg.method, ctx, ctx.msg.params)
 	if err != nil {
-		runtime.Abortf(exitcode.MethodAbort, "Legacy actor code returned an error. %s", err)
-	}
-	if code != 0 {
-		runtime.Abortf(exitcode.MethodAbort, "Legacy actor code returned with non-zero error code, code: %d", code)
+		// Dragons: this is wrong, it could be a decoding error too
+		runtime.Abort(exitcode.InvalidMethod)
 	}
 
 	// post-dispatch
@@ -129,11 +113,8 @@ func (ctx *invocationContext) invoke() interface{} {
 
 	ctx.toActor.Head = stateHandle.head
 
-	// 3. success! build the receipt
-	if len(vals) > 0 {
-		return vals[0]
-	}
-	return nil
+	// 3. success!
+	return ret
 }
 
 // resolveTarget loads and actor and returns its ActorID address.
@@ -152,11 +133,12 @@ func (ctx *invocationContext) resolveTarget(target address.Address) (*actor.Acto
 	var stateHandle = NewReadonlyStateHandle(ctx.rt.Storage(), initActorEntry.Head)
 
 	// get a view into the actor state
-	initView := initactor.NewView(stateHandle, ctx.rt.Storage())
+	var initState notinit.State
+	stateHandle.Readonly(&initState)
 
 	// lookup the ActorID based on the address
-	targetIDAddr, ok := initView.GetIDAddressByAddress(target)
-	if ok {
+	targetIDAddr, err := initState.ResolveAddress(ctx.rt.Storage(), target)
+	if err != nil {
 		targetActor, err := ctx.rt.state.GetActor(context.Background(), targetIDAddr)
 		if err == nil {
 			// actor found, return it and its IDAddress
@@ -174,11 +156,15 @@ func (ctx *invocationContext) resolveTarget(target address.Address) (*actor.Acto
 	}
 
 	// send init actor msg to create the account actor
-	params := []interface{}{types.AccountActorCodeCid, []interface{}{target}}
-
-	encodedParams, err := abi.ToEncodedValues(params...)
+	constructorParams, err := encoding.Encode(target)
 	if err != nil {
 		runtime.Abortf(exitcode.EncodingError, "failed to encode params. %s", err)
+	}
+
+	params := notinit.ExecParams{CodeCID: types.AccountActorCodeCid, ConstructorParams: constructorParams}
+	encodedParams, err := encoding.Encode(params)
+	if err != nil {
+		runtime.Abortf(exitcode.EncodingError, "failed to encode params. %sß", err)
 	}
 	newMsg := internalMessage{
 		from:   ctx.msg.from,
@@ -235,13 +221,8 @@ func (ctx *invocationContext) StateHandle() runtime.ActorStateHandle {
 	return ctx.stateHandle
 }
 
-// LegacySend implements runtime.InvocationContext.
-func (ctx *invocationContext) LegacySend(to address.Address, method types.MethodID, value types.AttoFIL, params []interface{}) ([][]byte, uint8, error) {
-	panic("legacy code invoked")
-}
-
 // Send implements runtime.InvocationContext.
-func (ctx *invocationContext) Send(to address.Address, method types.MethodID, value types.AttoFIL, params []interface{}) interface{} {
+func (ctx *invocationContext) Send(to address.Address, method types.MethodID, value types.AttoFIL, params interface{}) interface{} {
 	// check if side-effects are allowed
 	if !ctx.allowSideEffects {
 		runtime.Abortf(exitcode.MethodAbort, "Calling Send() is not allowed during side-effet lock")
@@ -256,7 +237,7 @@ func (ctx *invocationContext) Send(to address.Address, method types.MethodID, va
 	fromActor := ctx.toActor
 
 	// 2. build internal message
-	encodedParams, err := abi.ToEncodedValues(params...)
+	encodedParams, err := encoding.Encode(params)
 	if err != nil {
 		runtime.Abortf(exitcode.EncodingError, "failed to encode params. %s", err)
 	}
@@ -301,38 +282,13 @@ func (ctx *invocationContext) Charge(cost types.GasUnits) error {
 var _ runtime.ExtendedInvocationContext = (*invocationContext)(nil)
 
 /// CreateActor implements runtime.ExtendedInvocationContext.
-func (ctx *invocationContext) CreateActor(actorID types.Uint64, code cid.Cid, params []interface{}) (address.Address, address.Address) {
-	// Dragons: code it over, there were some changes in spec, revise
+func (ctx *invocationContext) CreateActor(code cid.Cid, idAddr address.Address) {
 	if !isBuiltinActor(code) {
 		runtime.Abortf(exitcode.MethodAbort, "Can only create built-in actors.")
 	}
 
 	if isSingletonActor(code) {
 		runtime.Abortf(exitcode.MethodAbort, "Can only have one instance of singleton actors.")
-	}
-
-	// create address for actor
-	var actorAddr address.Address
-	var err error
-	if types.AccountActorCodeCid.Equals(code) {
-		// address for account actor comes from first parameter
-		if len(params) < 1 {
-			runtime.Abortf(exitcode.MethodAbort, "Missing address parameter for account actor creation")
-		}
-		actorAddr, err = actorAddressFromParam(params[0])
-		if err != nil {
-			runtime.Abortf(exitcode.MethodAbort, "Parameter for account actor creation is not an address")
-		}
-	} else {
-		actorAddr, err = computeActorAddress(ctx.msg.from, uint64(ctx.msg.callSeqNumber))
-		if err != nil {
-			runtime.Abortf(exitcode.MethodAbort, "Could not create address for actor")
-		}
-	}
-
-	idAddr, err := address.NewIDAddress(uint64(actorID))
-	if err != nil {
-		runtime.Abortf(exitcode.MethodAbort, "Could not create IDAddress for actor")
 	}
 
 	// Check existing address. If nothing there, create empty actor.
@@ -352,26 +308,11 @@ func (ctx *invocationContext) CreateActor(actorID types.Uint64, code cid.Cid, pa
 
 	// make this the right 'type' of actor
 	newActor.Code = code
-
-	// send message containing actor's initial balance to construct it with the given params
-	ctx.Send(idAddr, types.ConstructorMethodID, ctx.Message().ValueReceived(), params)
-
-	return idAddr, actorAddr
 }
 
 /// VerifySignature implements runtime.ExtendedInvocationContext.
 func (ctx *invocationContext) VerifySignature(signer address.Address, signature types.Signature, msg []byte) bool {
 	return types.IsValidSignature(msg, signer, signature)
-}
-
-//
-// implement ExportContext for invocationContext
-//
-
-var _ ExportContext = (*invocationContext)(nil)
-
-func (ctx *invocationContext) Params() []byte {
-	return ctx.msg.params
 }
 
 // patternContext implements the PatternContext
@@ -394,42 +335,4 @@ func isBuiltinActor(code cid.Cid) bool {
 func isSingletonActor(code cid.Cid) bool {
 	return code.Equals(types.StorageMarketActorCodeCid) ||
 		code.Equals(types.InitActorCodeCid)
-}
-
-func computeActorAddress(creator address.Address, nonce uint64) (address.Address, error) {
-	buf := new(bytes.Buffer)
-
-	if _, err := buf.Write(creator.Bytes()); err != nil {
-		return address.Undef, err
-	}
-
-	if err := binary.Write(buf, binary.BigEndian, nonce); err != nil {
-		return address.Undef, err
-	}
-
-	return address.NewActorAddress(buf.Bytes())
-}
-
-func actorAddressFromParam(maybeAddress interface{}) (address.Address, error) {
-	addr, ok := maybeAddress.(address.Address)
-	if ok {
-		return addr, nil
-	}
-
-	stringAddr, ok := maybeAddress.(string)
-	if ok {
-		maybeAddress = []byte(stringAddr)
-	}
-
-	serialized, ok := maybeAddress.([]byte)
-	if ok {
-		addrInt, err := abi.Deserialize(serialized, abi.Address)
-		if err != nil {
-			return address.Undef, err
-		}
-
-		return addrInt.Val.(address.Address), nil
-	}
-
-	return address.Undef, fmt.Errorf("address parameter is not an address")
 }

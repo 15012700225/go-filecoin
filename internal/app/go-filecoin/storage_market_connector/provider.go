@@ -18,7 +18,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/message"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/piecemanager"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/wallet"
 )
@@ -79,68 +78,71 @@ func (s *StorageProviderNodeConnector) EnsureFunds(ctx context.Context, addr add
 
 // PublishDeals publishes storage deals on chain
 func (s *StorageProviderNodeConnector) PublishDeals(ctx context.Context, deal storagemarket.MinerDeal) (storagemarket.DealID, cid.Cid, error) {
-	sig := types.Signature(deal.Proposal.ProposerSignature.Data)
+	// Dragons: please write against latest actor code
+	panic("dragons")
 
-	fcStorageProposal := types.StorageDealProposal{
-		PieceRef:  deal.Proposal.PieceRef,
-		PieceSize: types.Uint64(deal.Proposal.PieceSize),
+	// sig := types.Signature(deal.Proposal.ProposerSignature.Data)
 
-		Client:   deal.Proposal.Client,
-		Provider: deal.Proposal.Provider,
+	// fcStorageProposal := types.StorageDealProposal{
+	// 	PieceRef:  deal.Proposal.PieceRef,
+	// 	PieceSize: types.Uint64(deal.Proposal.PieceSize),
 
-		ProposalExpiration: types.Uint64(deal.Proposal.ProposalExpiration),
-		Duration:           types.Uint64(deal.Proposal.Duration),
+	// 	Client:   deal.Proposal.Client,
+	// 	Provider: deal.Proposal.Provider,
 
-		StoragePricePerEpoch: types.Uint64(deal.Proposal.StoragePricePerEpoch.Uint64()),
-		StorageCollateral:    types.Uint64(deal.Proposal.StorageCollateral.Uint64()),
+	// 	ProposalExpiration: types.Uint64(deal.Proposal.ProposalExpiration),
+	// 	Duration:           types.Uint64(deal.Proposal.Duration),
 
-		ProposerSignature: &sig,
-	}
-	params, err := abi.ToEncodedValues([]types.StorageDealProposal{fcStorageProposal})
-	if err != nil {
-		return 0, cid.Undef, err
-	}
+	// 	StoragePricePerEpoch: types.Uint64(deal.Proposal.StoragePricePerEpoch.Uint64()),
+	// 	StorageCollateral:    types.Uint64(deal.Proposal.StorageCollateral.Uint64()),
 
-	workerAddr, err := s.GetMinerWorker(ctx, s.minerAddr)
-	if err != nil {
-		return 0, cid.Undef, err
-	}
+	// 	ProposerSignature: &sig,
+	// }
+	// params, err := abi.ToEncodedValues([]types.StorageDealProposal{fcStorageProposal})
+	// if err != nil {
+	// 	return 0, cid.Undef, err
+	// }
 
-	mcid, cerr, err := s.outbox.Send(
-		ctx,
-		workerAddr,
-		vmaddr.StorageMarketAddress,
-		types.ZeroAttoFIL,
-		types.NewGasPrice(1),
-		types.NewGasUnits(300),
-		true,
-		integration.Method_Market_PublishStorageDeals,
-		params,
-	)
-	if err != nil {
-		return 0, cid.Undef, err
-	}
+	// workerAddr, err := s.GetMinerWorker(ctx, s.minerAddr)
+	// if err != nil {
+	// 	return 0, cid.Undef, err
+	// }
 
-	receipt, err := s.wait(ctx, mcid, cerr)
-	if err != nil {
-		return 0, cid.Undef, err
-	}
+	// mcid, cerr, err := s.outbox.Send(
+	// 	ctx,
+	// 	workerAddr,
+	// 	vmaddr.StorageMarketAddress,
+	// 	types.ZeroAttoFIL,
+	// 	types.NewGasPrice(1),
+	// 	types.NewGasUnits(300),
+	// 	true,
+	// 	integration.Method_Market_PublishStorageDeals,
+	// 	params,
+	// )
+	// if err != nil {
+	// 	return 0, cid.Undef, err
+	// }
 
-	dealIDValues, err := abi.Deserialize(receipt.Return[0], abi.UintArray)
-	if err != nil {
-		return 0, cid.Undef, err
-	}
+	// receipt, err := s.wait(ctx, mcid, cerr)
+	// if err != nil {
+	// 	return 0, cid.Undef, err
+	// }
 
-	dealIds, ok := dealIDValues.Val.([]uint64)
-	if !ok {
-		return 0, cid.Undef, xerrors.New("decoded deal ids are not a []uint64")
-	}
+	// dealIDValues, err := abi.Deserialize(receipt.Return[0], abi.UintArray)
+	// if err != nil {
+	// 	return 0, cid.Undef, err
+	// }
 
-	if len(dealIds) < 1 {
-		return 0, cid.Undef, xerrors.New("Successful call to publish storage deals did not return deal ids")
-	}
+	// dealIds, ok := dealIDValues.Val.([]uint64)
+	// if !ok {
+	// 	return 0, cid.Undef, xerrors.New("decoded deal ids are not a []uint64")
+	// }
 
-	return storagemarket.DealID(dealIds[0]), mcid, err
+	// if len(dealIds) < 1 {
+	// 	return 0, cid.Undef, xerrors.New("Successful call to publish storage deals did not return deal ids")
+	// }
+
+	// return storagemarket.DealID(dealIds[0]), mcid, err
 }
 
 // ListProviderDeals lists all deals for the given provider
@@ -158,35 +160,38 @@ func (s *StorageProviderNodeConnector) OnDealComplete(ctx context.Context, deal 
 
 // LocatePieceForDealWithinSector finds the sector, offset and length of a piece associated with the given deal id
 func (s *StorageProviderNodeConnector) LocatePieceForDealWithinSector(ctx context.Context, dealID uint64) (sectorNumber uint64, offset uint64, length uint64, err error) {
-	var smState spasm.State
-	err = s.chainStore.GetActorStateAt(ctx, s.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
-	if err != nil {
-		return 0, 0, 0, err
-	}
+	// Dragons: please write against latest actor code
+	panic("dragons")
 
-	var minerState spaminer.State
-	err = s.chainStore.GetActorStateAt(ctx, s.chainStore.Head(), s.minerAddr, &minerState)
-	if err != nil {
-		return 0, 0, 0, err
-	}
+	// var smState spasm.State
+	// err = s.chainStore.GetActorStateAt(ctx, s.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
+	// if err != nil {
+	// 	return 0, 0, 0, err
+	// }
 
-	for sectorNumber, sectorInfo := range minerState.PreCommittedSectors {
-		for _, deal := range sectorInfo.Info.DealIDs.Items {
-			if uint64(deal) == dealID {
-				offset := uint64(0)
-				for _, did := range sectorInfo.Info.DealIDs.Items {
-					deal, ok := smState.Deals[did]
-					if !ok {
-						return 0, 0, 0, errors.Errorf("Could not find miner deal %d in storage market state", did)
-					}
+	// var minerState spaminer.State
+	// err = s.chainStore.GetActorStateAt(ctx, s.chainStore.Head(), s.minerAddr, &minerState)
+	// if err != nil {
+	// 	return 0, 0, 0, err
+	// }
 
-					if uint64(did) == dealID {
-						return uint64(sectorNumber), offset, uint64(deal.Deal.Proposal.PieceSize.Total()), nil
-					}
-					offset += uint64(deal.Deal.Proposal.PieceSize.Total())
-				}
-			}
-		}
-	}
-	return 0, 0, 0, errors.New("Deal not found")
+	// for sectorNumber, sectorInfo := range minerState.PreCommittedSectors {
+	// 	for _, deal := range sectorInfo.Info.DealIDs.Items {
+	// 		if uint64(deal) == dealID {
+	// 			offset := uint64(0)
+	// 			for _, did := range sectorInfo.Info.DealIDs.Items {
+	// 				deal, ok := smState.Deals[did]
+	// 				if !ok {
+	// 					return 0, 0, 0, errors.Errorf("Could not find miner deal %d in storage market state", did)
+	// 				}
+
+	// 				if uint64(did) == dealID {
+	// 					return uint64(sectorNumber), offset, uint64(deal.Deal.Proposal.PieceSize.Total()), nil
+	// 				}
+	// 				offset += uint64(deal.Deal.Proposal.PieceSize.Total())
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// return 0, 0, 0, errors.New("Deal not found")
 }

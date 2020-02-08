@@ -6,6 +6,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-hamt-ipld"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
+	cbor "github.com/ipfs/go-ipld-cbor"
 )
 
 // BlockstoreSubmodule enhances the `Node` with local key/value storing capabilities.
@@ -18,8 +19,8 @@ type BlockstoreSubmodule struct {
 	// Blockstore is the un-networked blocks interface
 	Blockstore bstore.Blockstore
 
-	// cborStore is a wrapper for a `hamt.CborIpldStore` that works on the local IPLD-Cbor objects stored in `Blockstore`.
-	CborStore hamt.CborIpldStore
+	// cborStore is a wrapper for a `cbor.IpldStore` that works on the local IPLD-Cbor objects stored in `Blockstore`.
+	CborStore cbor.IpldStore
 }
 
 type blockstoreRepo interface {

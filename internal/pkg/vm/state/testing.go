@@ -7,7 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-hamt-ipld"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
@@ -47,7 +47,7 @@ type MockStateTree struct {
 	mock.Mock
 
 	NoMocks       bool
-	BuiltinActors map[cid.Cid]dispatch.ExecutableActor
+	BuiltinActors map[cid.Cid]dispatch.Dispatcher
 }
 
 // GetActorStorage implements Tree interface
@@ -110,7 +110,7 @@ func (m *MockStateTree) GetAllActors(ctx context.Context) <-chan GetAllActorsRes
 }
 
 // GetActorCode implements StateTree.GetActorCode
-func (m *MockStateTree) GetActorCode(c cid.Cid, protocol uint64) (dispatch.ExecutableActor, error) {
+func (m *MockStateTree) GetActorCode(c cid.Cid, protocol uint64) (dispatch.Dispatcher, error) {
 	a, ok := m.BuiltinActors[c]
 	if !ok {
 		return nil, fmt.Errorf("unknown actor: %v", c.String())
@@ -123,7 +123,7 @@ func (m *MockStateTree) GetActorCode(c cid.Cid, protocol uint64) (dispatch.Execu
 // can be avoided when we are able to change cborStore to an interface and then
 // making a test implementation of the cbor store that can map test cids to test
 // states.
-func TreeFromString(t *testing.T, s string, cst hamt.CborIpldStore) Tree {
+func TreeFromString(t *testing.T, s string, cst cbor.IpldStore) Tree {
 	tree := NewTree(cst)
 	strAddr, err := address.NewSecp256k1Address([]byte(s))
 	require.NoError(t, err)

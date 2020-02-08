@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/go-hamt-ipld"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	"github.com/libp2p/go-libp2p-core/peer"
+	cbor "github.com/ipfs/go-ipld-cbor"
 
 	"github.com/filecoin-project/go-filecoin/internal/pkg/block"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/consensus"
@@ -20,15 +21,15 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/version"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor"
-	"github.com/filecoin-project/specs-actors/actors/builtin/storagemarket"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
+	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/integration"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 	"github.com/stretchr/testify/require"
 )
 
 // RequireMakeStateTree takes a map of addresses to actors and stores them on
 // the state tree, requiring that all its steps succeed.
-func RequireMakeStateTree(t *testing.T, cst hamt.CborIpldStore, acts map[address.Address]*actor.Actor) (cid.Cid, state.Tree) {
+func RequireMakeStateTree(t *testing.T, cst cbor.IpldStore, acts map[address.Address]*actor.Actor) (cid.Cid, state.Tree) {
 	ctx := context.Background()
 	tree := state.NewTree(cst)
 
@@ -206,7 +207,7 @@ func CreateTestMinerWith(
 	require.True(t, found)
 
 	nonce := RequireGetNonce(t, st, vms, idAddr)
-	msg := types.NewUnsignedMessage(minerOwnerAddr, vmaddr.StorageMarketAddress, nonce, collateral, storagemarket.CreateStorageMiner, pdata)
+	msg := types.NewUnsignedMessage(minerOwnerAddr, vmaddr.StorageMarketAddress, nonce, collateral, integration.LegacyMethod("storagemarket.CreateStorageMiner"), pdata)
 
 	result, err := ApplyTestMessage(st, vms, msg, types.NewBlockHeight(height))
 	require.NoError(t, err)
@@ -273,7 +274,7 @@ func RequireInitAccountActor(ctx context.Context, t *testing.T, st state.Tree, v
 
 // GetTotalPower get total miner power from storage market
 func GetTotalPower(t *testing.T, st state.Tree, vms vm.Storage) *types.BytesAmount {
-	res, err := CreateAndApplyTestMessage(t, st, vms, vmaddr.StorageMarketAddress, 0, 0, storagemarket.GetTotalStorage, nil)
+	res, err := CreateAndApplyTestMessage(t, st, vms, vmaddr.StorageMarketAddress, 0, 0, integration.LegacyMethod("storagemarket.GetTotalStorage"), nil)
 	require.NoError(t, err)
 	require.NoError(t, res.ExecutionError)
 	require.Equal(t, uint8(0), res.Receipt.ExitCode)

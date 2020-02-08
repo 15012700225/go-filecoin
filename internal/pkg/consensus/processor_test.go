@@ -19,7 +19,6 @@ package consensus_test
 // 	tf "github.com/filecoin-project/go-filecoin/internal/pkg/testhelpers/testflags"
 // 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 // 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
-// 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 // 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor"
 // 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 // 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
@@ -27,7 +26,7 @@ package consensus_test
 // 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 // )
 
-// func requireMakeStateTree(t *testing.T, cst *hamt.CborIpldStore, acts map[address.Address]*actor.Actor) (cid.Cid, state.Tree) {
+// func requireMakeStateTree(t *testing.T, cst *cbor.IpldStore, acts map[address.Address]*actor.Actor) (cid.Cid, state.Tree) {
 // 	ctx := context.Background()
 // 	tree := state.NewTree(cst)
 

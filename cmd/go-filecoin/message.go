@@ -20,7 +20,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/app/go-filecoin/plumbing/msg"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/message"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 )
 
 var msgCmd = &cmds.Command{
@@ -190,7 +189,6 @@ var signedMsgSendCmd = &cmds.Command{
 type WaitResult struct {
 	Message   *types.SignedMessage
 	Receipt   *types.MessageReceipt
-	Signature *vm.FunctionSignature
 }
 
 var msgWaitCmd = &cmds.Command{
@@ -270,14 +268,7 @@ var msgWaitCmd = &cmds.Command{
 				}
 			}
 
-			if returnOpt && res.Receipt != nil && res.Signature != nil {
-				val, err := abi.Deserialize(res.Receipt.Return[0], res.Signature.Return[0])
-				if err != nil {
-					return errors.Wrap(err, "unable to deserialize return value")
-				}
-
-				marshaled = append(marshaled, []byte(val.Val.(fmt.Stringer).String())...)
-			}
+			// TODO: return a json if we expect to print method results
 
 			_, err = w.Write(marshaled)
 			return err

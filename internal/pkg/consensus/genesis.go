@@ -18,13 +18,14 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor"
+	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
+	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/integration"
+	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 	"github.com/filecoin-project/specs-actors/actors/builtin/account"
 	"github.com/filecoin-project/specs-actors/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/actors/builtin/storagemarket"
-	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 )
 
 // GenesisInitFunc is the signature for function that is used to create a genesis block.
@@ -279,14 +280,14 @@ func SetupDefaultActors(ctx context.Context, vm GenesisVM, store *vm.Storage, st
 		return &a
 	}
 
-	createActor(vmaddr.InitAddress, types.InitActorCodeCid, initactor.State{
+	createActor(vmaddr.InitAddress, types.InitActorCodeCid, init.State{
 		Network: network,
 		NextID:  100,
 	})
 
 	createActor(vmaddr.StoragePowerAddress, types.PowerActorCodeCid, power.State{})
 
-	createActor(vmaddr.StorageMarketAddress, types.StorageMarketActorCodeCid, storagemarket.State{
+	createActor(vmaddr.StorageMarketAddress, types.StorageMarketActorCodeCid, market.State{
 		TotalCommittedStorage: types.NewBytesAmount(0),
 		ProofsMode:            storeType,
 	})
@@ -315,7 +316,7 @@ func SetupDefaultActors(ctx context.Context, vm GenesisVM, store *vm.Storage, st
 				return err
 			}
 		} else {
-			_, err = vm.ApplyGenesisMessage(vmaddr.LegacyNetworkAddress, vmaddr.InitAddress, initactor.ExecMethodID, val, types.AccountActorCodeCid, []interface{}{addr})
+			_, err = vm.ApplyGenesisMessage(vmaddr.LegacyNetworkAddress, vmaddr.InitAddress, integration.LegacyMethod("initactor.ExecMethodID"), val, types.AccountActorCodeCid, []interface{}{addr})
 			if err != nil {
 				return err
 			}

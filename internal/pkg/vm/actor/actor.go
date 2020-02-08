@@ -5,16 +5,9 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-hamt-ipld"
-	cbor "github.com/ipfs/go-ipld-cbor"
-	"github.com/pkg/errors"
 
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 )
-
-// DefaultGasCost is default gas cost for the actor calls.
-const DefaultGasCost = 100
 
 // Actor is the central abstraction of entities in the system.
 //
@@ -55,8 +48,8 @@ func NewActor(code cid.Cid, balance types.AttoFIL) *Actor {
 	}
 }
 
-// Empty tests whether the actor's code is defined.
-func (a *Actor) Empty() bool {
+// IsEmpty tests whether the actor's code is defined.
+func (a *Actor) IsEmpty() bool {
 	return !a.Code.Defined()
 }
 
@@ -65,66 +58,7 @@ func (a *Actor) IncrementSeqNum() {
 	a.CallSeqNum = a.CallSeqNum + 1
 }
 
-// Cid returns the canonical CID for the actor.
-// TODO: can we avoid returning an error?
-func (a *Actor) Cid() (cid.Cid, error) {
-	obj, err := cbor.WrapObject(a, types.DefaultHashFunction, -1)
-	if err != nil {
-		return cid.Undef, errors.Wrap(err, "failed to marshal to cbor")
-	}
-
-	return obj.Cid(), nil
-}
-
-// Unmarshal a actor from the given bytes.
-func (a *Actor) Unmarshal(b []byte) error {
-	return encoding.Decode(b, a)
-}
-
-// Marshal the actor into bytes.
-func (a *Actor) Marshal() ([]byte, error) {
-	return encoding.Encode(a)
-}
-
 // Format implements fmt.Formatter.
 func (a *Actor) Format(f fmt.State, c rune) {
-	f.Write([]byte(fmt.Sprintf("<%s (%p); balance: %v; nonce: %d>", types.ActorCodeTypeName(a.Code), a, a.Balance, a.CallSeqNum))) // nolint: errcheck
-}
-
-///// Utility functions (non-methods) /////
-
-// NextNonce returns the nonce value for an account actor, which is the nonce expected on the
-// next message to be sent from that actor.
-// Returns zero for a nil actor, which is the value expected on the first message.
-func NextNonce(actor *Actor) (uint64, error) {
-	if actor == nil {
-		return 0, nil
-	}
-	if !(actor.Empty() || actor.Code.Equals(types.AccountActorCodeCid)) {
-		return 0, errors.New("next nonce only defined for account or empty actors")
-	}
-	return uint64(actor.CallSeqNum), nil
-}
-
-// InitBuiltinActorCodeObjs writes all builtin actor code objects to `cst`. This method should be called when initializing a genesis
-// block to ensure all IPLD links referenced by the state tree exist.
-func InitBuiltinActorCodeObjs(cst *hamt.BasicCborIpldStore) error {
-	if err := cst.Blocks.AddBlock(types.StorageMarketActorCodeObj); err != nil {
-		return err
-	}
-	if err := cst.Blocks.AddBlock(types.MinerActorCodeObj); err != nil {
-		return err
-	}
-	if err := cst.Blocks.AddBlock(types.BootstrapMinerActorCodeObj); err != nil {
-		return err
-	}
-	if err := cst.Blocks.AddBlock(types.AccountActorCodeObj); err != nil {
-		return err
-	}
-	if err := cst.Blocks.AddBlock(types.PowerActorCodeObj); err != nil {
-		return err
-	}
-
-	return cst.Blocks.AddBlock(types.InitActorCodeObj)
-
+	f.Write([]byte(fmt.Sprintf("<%s (%p); balance: %v; callSeqNum: %d>", types.ActorCodeTypeName(a.Code), a, a.Balance, a.CallSeqNum))) // nolint: errcheck
 }

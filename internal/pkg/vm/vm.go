@@ -41,3 +41,6 @@ var DefaultActors = dispatch.DefaultActors
 
 // ActorCodeLoader allows yo to load an actor's code based on its id an epoch.
 type ActorCodeLoader = dispatch.CodeLoader
+
+// ActorMethodSignature wraps a specific method and allows you to encode/decodes input/output bytes into concrete types.
+type ActorMethodSignature = dispatch.MethodSignature

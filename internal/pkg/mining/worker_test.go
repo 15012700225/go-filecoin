@@ -15,6 +15,7 @@ import (
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
 	dag "github.com/ipfs/go-merkledag"
 
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -271,7 +272,7 @@ func Test_Mine(t *testing.T) {
 	})
 }
 
-func sharedSetupInitial() (hamt.CborIpldStore, *message.Pool, cid.Cid) {
+func sharedSetupInitial() (cbor.IpldStore, *message.Pool, cid.Cid) {
 	cst := hamt.NewCborStore()
 	pool := message.NewPool(config.NewDefaultConfig().Mpool, th.NewMockMessagePoolValidator())
 	// Install the fake actor so we can execute it.

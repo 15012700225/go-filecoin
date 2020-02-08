@@ -7,12 +7,6 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
-	"github.com/filecoin-project/specs-actors/actors/builtin/cron"
-	"github.com/filecoin-project/specs-actors/actors/builtin/init"
-	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/actors/builtin/reward"
-	"github.com/filecoin-project/specs-actors/actors/builtin/storagemining"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/dispatch"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/exitcode"
@@ -23,8 +17,11 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/runtime"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/storage"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
+	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/actors/builtin/reward"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
+	"golang.org/x/text/encoding"
 )
 
 var vmLog = logging.Logger("vm.context")
@@ -80,9 +77,9 @@ func NewVM(rnd RandomnessSource, actorImpls ActorImplLookup, store *storage.VMSt
 // ApplyGenesisMessage forces the execution of a message in the vm actor.
 //
 // This method is intended to be used in the generation of the genesis block only.
-func (vm *VM) ApplyGenesisMessage(from address.Address, to address.Address, method types.MethodID, value types.AttoFIL, params ...interface{}) (interface{}, error) {
+func (vm *VM) ApplyGenesisMessage(from address.Address, to address.Address, method types.MethodID, value types.AttoFIL, params interface{}) (interface{}, error) {
 	// get the params into bytes
-	encodedParams, err := abi.ToEncodedValues(params...)
+	encodedParams, err := encoding.Encode(params)
 	if err != nil {
 		return nil, err
 	}
@@ -441,10 +438,10 @@ func (vm *VM) getMinerOwner(minerAddr address.Address) address.Address {
 	// build state handle
 	var stateHandle = NewReadonlyStateHandle(vm.Storage(), minerActorEntry.Head)
 
-	// get a view into the actor state
-	minerView := miner.NewView(stateHandle, vm.Storage())
+	var state miner.State
+	stateHandle.Readonly(&state)
 
-	return minerView.Owner()
+	return miner.OwnerArdr
 }
 
 func (vm *VM) settleGasBill(sender address.Address, gasTank *gas.Tracker, payee address.Address, gasPrice types.AttoFIL) {
@@ -491,7 +488,7 @@ func (vm *VM) transfer(debitFrom address.Address, creditTo address.Address, amou
 	return
 }
 
-func (vm *VM) getActorImpl(code cid.Cid) dispatch.Dispatch {
+func (vm *VM) getActorImpl(code cid.Cid) dispatch.Dispatcher {
 	actorImpl, err := vm.actorImpls.GetActorImpl(code, vm.currentEpoch)
 	if err != nil {
 		runtime.Abort(exitcode.ActorCodeNotFound)
@@ -603,14 +600,18 @@ func makeEpostMessage(blockMiner address.Address) internalMessage {
 		from:   vmaddr.SystemAddress,
 		to:     blockMiner,
 		value:  types.ZeroAttoFIL,
-		method: storagemining.ProcessVerifiedElectionPoStMethodID,
+		method: integration.LegacyMethod("storagemining.ProcessVerifiedElectionPoStMethodID"),
 		params: []byte{},
 	}
 }
 
 func makeBlockRewardMessage(blockMiner address.Address, penalty types.AttoFIL) internalMessage {
-	params := []interface{}{blockMiner, penalty}
-	encoded, err := abi.ToEncodedValues(params...)
+	// Dragons: re-implement
+	params := reward.AwardBlockRewardParams{
+		Miner: blockMiner,
+		// Penalty: penalty,
+	}
+	encoded, err := encoding.Encode(params)
 	if err != nil {
 		panic(fmt.Errorf("failed to encode built-in block reward. %s", err))
 	}
@@ -619,7 +620,7 @@ func makeBlockRewardMessage(blockMiner address.Address, penalty types.AttoFIL) i
 		from:   vmaddr.SystemAddress,
 		to:     vmaddr.RewardAddress,
 		value:  types.ZeroAttoFIL,
-		method: reward.AwardBlockRewardMethodID,
+		method: integration.LegacyMethod("reward.AwardBlockRewardMethodID"),
 		params: encoded,
 	}
 }
@@ -630,7 +631,7 @@ func makeCronTickMessage(blockMiner address.Address) internalMessage {
 		from:   vmaddr.SystemAddress,
 		to:     vmaddr.CronAddress,
 		value:  types.ZeroAttoFIL,
-		method: cron.EpochTickMethodID,
+		method: integration.LegacyMethod("cron.EpochTickMethodID"),
 		params: []byte{},
 	}
 }

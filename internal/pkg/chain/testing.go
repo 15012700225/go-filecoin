@@ -20,6 +20,7 @@ import (
 	bls "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/block"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/clock"
+	cbor "github.com/ipfs/go-ipld-cbor"
 
 	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	th "github.com/filecoin-project/go-filecoin/internal/pkg/testhelpers"
@@ -40,7 +41,7 @@ type Builder struct {
 	stateBuilder StateBuilder
 	stamper      TimeStamper
 	bs           blockstore.Blockstore
-	cstore       hamt.CborIpldStore
+	cstore       cbor.IpldStore
 	messages     *MessageStore
 	seq          uint64 // For unique tickets
 

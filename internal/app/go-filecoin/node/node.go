@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
-	"github.com/ipfs/go-hamt-ipld"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/pkg/errors"
@@ -675,7 +675,7 @@ func (node *Node) BlockService() bserv.BlockService {
 }
 
 // CborStore returns the nodes cborStore.
-func (node *Node) CborStore() hamt.CborIpldStore {
+func (node *Node) CborStore() cbor.IpldStore {
 	return node.Blockstore.CborStore
 }
 

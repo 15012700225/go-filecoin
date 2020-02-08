@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/filecoin-project/go-filecoin/internal/pkg/message"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 
 	"github.com/filecoin-project/go-fil-markets/shared/tokenamount"
 
@@ -103,7 +102,7 @@ func (c *connectorCommon) wait(ctx context.Context, mcid cid.Cid, pubErrCh chan 
 }
 
 func (c *connectorCommon) addFunds(ctx context.Context, fromAddr address.Address, addr address.Address, amount tokenamount.TokenAmount) error {
-	params, err := abi.ToEncodedValues(addr)
+	params, err := encoding.Encode(addr)
 	if err != nil {
 		return err
 	}
@@ -112,11 +111,11 @@ func (c *connectorCommon) addFunds(ctx context.Context, fromAddr address.Address
 		ctx,
 		fromAddr,
 		vmaddr.StorageMarketAddress,
-		types.NewAttoFIL(amount.Int),
+		types.NewAttoFIL(amount.Int),ß
 		types.NewGasPrice(1),
 		types.NewGasUnits(300),
 		true,
-		integration.Method_Market_AddBalance,
+		integration.LegacyMethod("AddBalance"),
 		params,
 	)
 	if err != nil {
@@ -150,27 +149,31 @@ func (c *connectorCommon) SignBytes(ctx context.Context, signer address.Address,
 }
 
 func (c *connectorCommon) GetBalance(ctx context.Context, addr address.Address) (storagemarket.Balance, error) {
-	var smState spasm.State
-	err := c.chainStore.GetActorStateAt(ctx, c.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
-	if err != nil {
-		return storagemarket.Balance{}, err
-	}
+	// Dragons: please write against latest actor code
+	panic("dragons")
 
-	// Dragons: Balance or similar should be an exported method on StorageMarketState. Do it ourselves for now.
-	available, ok := spautil.BalanceTable_GetEntry(smState.EscrowTable, addr)
-	if !ok {
-		available = spaabi.NewTokenAmount(0)
-	}
+	// var smState spasm.State
+	// err := c.chainStore.GetActorStateAt(ctx, c.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
+	// if err != nil {
+	// 	return storagemarket.Balance{}, err
+	// }
 
-	locked, ok := spautil.BalanceTable_GetEntry(smState.LockedReqTable, addr)
-	if !ok {
-		locked = spaabi.NewTokenAmount(0)
-	}
+	// // Dragons: Balance or similar should be an exported method on StorageMarketState. Do it ourselves for now.
+	// available, ok := spautil.BalanceTable_GetEntry(smState.EscrowTable, addr)
+	// if !ok {
+	// 	available = spaabi.NewTokenAmount(0)
+	// }
 
-	return storagemarket.Balance{
-		Available: tokenamount.FromInt(available.Int.Uint64()),
-		Locked:    tokenamount.FromInt(locked.Int.Uint64()),
-	}, nil
+	// locked, ok := spautil.BalanceTable_GetEntry(smState.LockedReqTable, addr)
+	// if !ok {
+	// 	locked = spaabi.NewTokenAmount(0)
+	// }
+
+	// return storagemarket.Balance{
+	// 	Available: tokenamount.FromInt(available.Int.Uint64()),
+	// 	Locked:    tokenamount.FromInt(locked.Int.Uint64()),
+	// }, nil
+
 }
 
 func (c *connectorCommon) GetMinerWorker(ctx context.Context, miner address.Address) (address.Address, error) {
@@ -185,98 +188,107 @@ func (c *connectorCommon) GetMinerWorker(ctx context.Context, miner address.Addr
 }
 
 func (c *connectorCommon) OnDealSectorCommitted(ctx context.Context, provider address.Address, dealID uint64, cb storagemarket.DealSectorCommittedCallback) error {
-	// TODO: is this provider address the miner address or the miner worker address?
+	// Dragons: please write against latest actor code
+	panic("dragons")
 
-	pred := func(msg *types.SignedMessage, msgCid cid.Cid) bool {
-		m := msg.Message
-		if m.Method != spasm.CommitSector {
-			return false
-		}
+	// // TODO: is this provider address the miner address or the miner worker address?
 
-		// TODO: compare addresses directly when they share a type #3719
-		if m.From.String() != provider.String() {
-			return false
-		}
+	// pred := func(msg *types.SignedMessage, msgCid cid.Cid) bool {
+	// 	m := msg.Message
+	// 	if m.Method != spasm.CommitSector {
+	// 		return false
+	// 	}
 
-		values, err := abi.DecodeValues(m.Params, []abi.Type{abi.SectorProveCommitInfo})
-		if err != nil {
-			return false
-		}
+	// 	// TODO: compare addresses directly when they share a type #3719
+	// 	if m.From.String() != provider.String() {
+	// 		return false
+	// 	}
 
-		commitInfo := values[0].Val.(*types.SectorProveCommitInfo)
-		for _, id := range commitInfo.DealIDs {
-			if uint64(id) == dealID {
-				return true
-			}
-		}
-		return false
-	}
+	// 	values, err := abi.DecodeValues(m.Params, []abi.Type{abi.SectorProveCommitInfo})
+	// 	if err != nil {
+	// 		return false
+	// 	}
 
-	msg, found, err := c.waiter.Find(ctx, pred)
-	if err != nil {
-		cb(0, err)
-		return err
-	}
-	if found {
-		sectorID, err := decodeSectorID(msg.Message)
-		cb(sectorID, err)
-		return err
-	}
+	// 	commitInfo := values[0].Val.(*types.SectorProveCommitInfo)
+	// 	for _, id := range commitInfo.DealIDs {
+	// 		if uint64(id) == dealID {
+	// 			return true
+	// 		}
+	// 	}
+	// 	return false
+	// }
 
-	return c.waiter.WaitPredicate(ctx, pred, func(_ *block.Block, msg *types.SignedMessage, _ *types.MessageReceipt) error {
-		sectorID, err := decodeSectorID(msg)
-		cb(sectorID, err)
-		return err
-	})
+	// msg, found, err := c.waiter.Find(ctx, pred)
+	// if err != nil {
+	// 	cb(0, err)
+	// 	return err
+	// }
+	// if found {
+	// 	sectorID, err := decodeSectorID(msg.Message)
+	// 	cb(sectorID, err)
+	// 	return err
+	// }
+
+	// return c.waiter.WaitPredicate(ctx, pred, func(_ *block.Block, msg *types.SignedMessage, _ *types.MessageReceipt) error {
+	// 	sectorID, err := decodeSectorID(msg)
+	// 	cb(sectorID, err)
+	// 	return err
+	// })
 }
 
 func decodeSectorID(msg *types.SignedMessage) (uint64, error) {
-	values, err := abi.DecodeValues(msg.Message.Params, []abi.Type{abi.SectorProveCommitInfo})
-	if err != nil {
-		return 0, err
-	}
+	// Dragons: please write against latest actor code
+	panic("dragons")
 
-	commitInfo, ok := values[0].Val.(*types.SectorProveCommitInfo)
-	if !ok {
-		return 0, errors.Errorf("Expected message params to be SectorProveCommitInfo, but was %v", values[0].Type)
-	}
+	// values, err := abi.DecodeValues(msg.Message.Params, []abi.Type{abi.SectorProveCommitInfo})
+	// if err != nil {
+	// 	return 0, err
+	// }
 
-	return uint64(commitInfo.SectorID), nil
+	// commitInfo, ok := values[0].Val.(*types.SectorProveCommitInfo)
+	// if !ok {
+	// 	return 0, errors.Errorf("Expected message params to be SectorProveCommitInfo, but was %v", values[0].Type)
+	// }
+
+	// return uint64(commitInfo.SectorID), nil
 }
 
 func (c *connectorCommon) listDeals(ctx context.Context, addr address.Address) ([]storagemarket.StorageDeal, error) {
-	var smState spasm.State
-	err := c.chainStore.GetActorStateAt(ctx, c.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
-	if err != nil {
-		return nil, err
-	}
+	// Dragons: please write against latest actor code
+	panic("dragons")
 
-	// Dragons: ListDeals or similar should be an exported method on StorageMarketState. Do it ourselves for now.
-	providerDealIds, ok := smState.CachedDealIDsByParty[addr]
-	if !ok {
-		return nil, errors.Errorf("No deals for %s", addr.String())
-	}
+	// var smState spasm.State
+	// err := c.chainStore.GetActorStateAt(ctx, c.chainStore.Head(), vmaddr.StorageMarketAddress, &smState)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	deals := []storagemarket.StorageDeal{}
-	for dealID := range providerDealIds {
-		onChainDeal, ok := smState.Deals[dealID]
-		if !ok {
-			return nil, errors.Errorf("Could not find deal for id %d", dealID)
-		}
-		proposal := onChainDeal.Deal.Proposal
-		deals = append(deals, storagemarket.StorageDeal{
-			// Dragons: We're almost certainly looking for a CommP here.
-			PieceRef:             proposal.PieceCID.Bytes(),
-			PieceSize:            uint64(proposal.PieceSize.Total()),
-			Client:               proposal.Client,
-			Provider:             proposal.Provider,
-			ProposalExpiration:   uint64(proposal.EndEpoch),
-			Duration:             uint64(proposal.Duration()),
-			StoragePricePerEpoch: tokenamount.FromInt(proposal.StoragePricePerEpoch.Int.Uint64()),
-			StorageCollateral:    tokenamount.FromInt(proposal.ProviderCollateral.Int.Uint64()),
-			ActivationEpoch:      uint64(proposal.StartEpoch),
-		})
-	}
+	// // Dragons: ListDeals or similar should be an exported method on StorageMarketState. Do it ourselves for now.
+	// providerDealIds, ok := smState.CachedDealIDsByParty[addr]
+	// if !ok {
+	// 	return nil, errors.Errorf("No deals for %s", addr.String())
+	// }
 
-	return deals, nil
+	// deals := []storagemarket.StorageDeal{}
+	// for dealID := range providerDealIds {
+	// 	onChainDeal, ok := smState.Deals[dealID]
+	// 	if !ok {
+	// 		return nil, errors.Errorf("Could not find deal for id %d", dealID)
+	// 	}
+	// 	proposal := onChainDeal.Deal.Proposal
+	// 	deals = append(deals, storagemarket.StorageDeal{
+	// 		// Dragons: We're almost certainly looking for a CommP here.
+	// 		PieceRef:             proposal.PieceCID.Bytes(),
+	// 		PieceSize:            uint64(proposal.PieceSize.Total()),
+	// 		Client:               proposal.Client,
+	// 		Provider:             proposal.Provider,
+	// 		ProposalExpiration:   uint64(proposal.EndEpoch),
+	// 		Duration:             uint64(proposal.Duration()),
+	// 		StoragePricePerEpoch: tokenamount.FromInt(proposal.StoragePricePerEpoch.Int.Uint64()),
+	// 		StorageCollateral:    tokenamount.FromInt(proposal.ProviderCollateral.Int.Uint64()),
+	// 		ActivationEpoch:      uint64(proposal.StartEpoch),
+	// 	})
+	// }
+
+	// return deals, nil
 }
