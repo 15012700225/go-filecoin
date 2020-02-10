@@ -35,9 +35,7 @@ type StorageMinerNodeConnector struct {
 	minerAddr  address.Address
 	workerAddr address.Address
 
-	newListener     chan *chainsampler.HeightThresholdListener
-	heightListeners []*chainsampler.HeightThresholdListener
-	listenerDone    chan struct{}
+	chainHeightScheduler *chainsampler.HeightThresholdScheduler
 
 	chainStore *chain.Store
 	chainState *cst.ChainStateReadWriter
@@ -53,74 +51,32 @@ var _ storage.NodeAPI = new(StorageMinerNodeConnector)
 // expected by the go-storage-miner project.
 func NewStorageMinerNodeConnector(minerAddress address.Address, workerAddress address.Address, chainStore *chain.Store, chainState *cst.ChainStateReadWriter, outbox *message.Outbox, waiter *msg.Waiter, wallet *wallet.Wallet) *StorageMinerNodeConnector {
 	return &StorageMinerNodeConnector{
-		minerAddr:    minerAddress,
-		workerAddr:   workerAddress,
-		listenerDone: make(chan struct{}),
-		chainStore:   chainStore,
-		chainState:   chainState,
-		outbox:       outbox,
-		waiter:       waiter,
-		wallet:       wallet,
+		minerAddr:            minerAddress,
+		workerAddr:           workerAddress,
+		chainHeightScheduler: chainsampler.NewHeightThresholdScheduler(chainStore),
+		chainStore:           chainStore,
+		chainState:           chainState,
+		outbox:               outbox,
+		waiter:               waiter,
+		wallet:               wallet,
 	}
 }
 
 // StartHeightListener starts the scheduler that manages height listeners.
 func (m *StorageMinerNodeConnector) StartHeightListener(ctx context.Context, htc <-chan interface{}) {
-	go func() {
-		var previousHead block.TipSet
-		for {
-			select {
-			case <-htc:
-				head, err := m.handleNewTipSet(ctx, previousHead)
-				if err != nil {
-					log.Warn("failed to handle new tipset")
-				} else {
-					previousHead = head
-				}
-			case heightListener := <-m.newListener:
-				m.heightListeners = append(m.heightListeners, heightListener)
-			case <-m.listenerDone:
-				return
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	m.chainHeightScheduler.StartHeightListener(ctx, htc)
 }
 
 // StopHeightListener stops the scheduler that manages height listeners.
 func (m *StorageMinerNodeConnector) StopHeightListener() {
-	m.listenerDone <- struct{}{}
+	m.chainHeightScheduler.Stop()
 }
 
 // CancelHeightListener removes on
 
 func (m *StorageMinerNodeConnector) handleNewTipSet(ctx context.Context, previousHead block.TipSet) (block.TipSet, error) {
-	newHeadKey := m.chainStore.GetHead()
-	newHead, err := m.chainStore.GetTipSet(newHeadKey)
-	if err != nil {
-		return block.TipSet{}, err
-	}
 
-	_, newTips, err := chain.CollectTipsToCommonAncestor(ctx, m.chainStore, previousHead, newHead)
-	if err != nil {
-		return block.TipSet{}, err
-	}
-
-	newListeners := make([]*chainsampler.HeightThresholdListener, len(m.heightListeners))
-	for _, listener := range m.heightListeners {
-		valid, err := listener.Handle(ctx, newTips)
-		if err != nil {
-			log.Error("Error checking storage miner chainStore listener", err)
-		}
-
-		if valid {
-			newListeners = append(newListeners, listener)
-		}
-	}
-	m.heightListeners = newListeners
-
-	return newHead, nil
+	return m.chainHeightScheduler.HandleNewTipSet(ctx, previousHead)
 }
 
 // SendSelfDeals creates self-deals and sends them to the network.
@@ -370,7 +326,7 @@ func (m *StorageMinerNodeConnector) GetSealSeed(ctx context.Context, preCommitMs
 			return
 		}
 
-		m.newListener <- chainsampler.NewHeightThresholdListener(h+interval, hc, ec, ic, dc)
+		m.chainHeightScheduler.AddListener(h + interval)
 	}()
 
 	// translate tipset key to seal seed handler
