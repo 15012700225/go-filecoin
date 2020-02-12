@@ -19,13 +19,14 @@ require (
 	github.com/filecoin-project/go-amt-ipld/v2 v2.0.1-0.20200131012142-05d80eeccc5e
 	github.com/filecoin-project/go-cbor-util v0.0.0-20191219014500-08c40a1e63a2
 	github.com/filecoin-project/go-data-transfer v0.0.0-20191219005021-4accf56bd2ce
+	github.com/filecoin-project/go-fil-commcid v0.0.0-20200208005934-2b8bd03caca5
 	github.com/filecoin-project/go-fil-markets v0.0.0-20200204152108-87675b3f9b04
 	github.com/filecoin-project/go-leb128 v0.0.0-20190212224330-8d79a5489543
 	github.com/filecoin-project/go-paramfetch v0.0.1
 	github.com/filecoin-project/go-sectorbuilder v0.0.2-0.20200114015900-4103afa82689
 	github.com/filecoin-project/go-statestore v0.1.0
 	github.com/filecoin-project/go-storage-miner v0.0.0-20200122233640-6a01988b8217
-	github.com/filecoin-project/specs-actors v0.0.0-20200210130641-2d1fbd8672cf
+	github.com/filecoin-project/specs-actors v0.0.0-20200211222055-25f94443b88c
 	github.com/fxamacker/cbor v1.5.0
 	github.com/go-check/check v0.0.0-20190902080502-41f04d3bba15 // indirect
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
@@ -97,6 +98,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/polydawn/refmt v0.0.0-20190809202753-05966cbd336a
 	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/common v0.7.0
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.5.0 // indirect
