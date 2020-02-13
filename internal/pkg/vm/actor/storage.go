@@ -112,16 +112,22 @@ var _ storage.Lookup = (*lookup)(nil)
 // If the return value is not primitive, you will need to load the lookup using the LoadTypedLookup
 // to ensure the return value is correctly unmarshaled.
 func (l *lookup) Find(ctx context.Context, k string, out interface{}) error {
-	return l.n.Find(ctx, k, out)
+	bs, err := l.n.FindRaw(ctx, k)
+	if err != nil {
+		return err
+	}
+	return encoding.Decode(bs, out)
 }
 
 // Set adds a value under the given key
 func (l *lookup) Set(ctx context.Context, k string, v interface{}) error {
+
 	bs, err := encoding.Encode(v)
 	if err != nil {
 		fmt.Printf("yo error here\n")
 		return err
 	}
+	fmt.Printf("setting this thing %v, type %T, bs: %x\n", v, v, bs)
 	err = l.n.SetRaw(ctx, k, bs)
 	if err != nil {
 		fmt.Printf("yo error here 2\n")
