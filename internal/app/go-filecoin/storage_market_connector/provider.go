@@ -1,12 +1,14 @@
 package storagemarketconnector
 
 import (
+	"bytes"
 	"context"
 	"io"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-fil-markets/shared/tokenamount"
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
+	"github.com/filecoin-project/specs-actors/actors/abi"
+	"github.com/filecoin-project/specs-actors/actors/abi/big"
 	spasm "github.com/filecoin-project/specs-actors/actors/builtin/market"
 	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	"github.com/filecoin-project/specs-actors/actors/util/adt"
@@ -19,7 +21,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/piecemanager"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/state"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
+	fcabi "github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 	fcsm "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/wallet"
@@ -56,7 +58,7 @@ func NewStorageProviderNodeConnector(ma address.Address,
 }
 
 // AddFunds sends a message to add storage market collateral for the given address
-func (s *StorageProviderNodeConnector) AddFunds(ctx context.Context, addr address.Address, amount tokenamount.TokenAmount) error {
+func (s *StorageProviderNodeConnector) AddFunds(ctx context.Context, addr address.Address, amount abi.TokenAmount) error {
 	workerAddr, err := s.GetMinerWorker(ctx, s.minerAddr)
 	if err != nil {
 		return err
@@ -66,7 +68,7 @@ func (s *StorageProviderNodeConnector) AddFunds(ctx context.Context, addr addres
 }
 
 // EnsureFunds checks the balance for an account and adds funds to the given amount if the balance is insufficient
-func (s *StorageProviderNodeConnector) EnsureFunds(ctx context.Context, addr address.Address, amount tokenamount.TokenAmount) error {
+func (s *StorageProviderNodeConnector) EnsureFunds(ctx context.Context, addr address.Address, amount abi.TokenAmount) error {
 	balance, err := s.GetBalance(ctx, addr)
 	if err != nil {
 		return err
@@ -76,29 +78,14 @@ func (s *StorageProviderNodeConnector) EnsureFunds(ctx context.Context, addr add
 		return nil
 	}
 
-	return s.AddFunds(ctx, addr, tokenamount.Sub(amount, balance.Available))
+	return s.AddFunds(ctx, addr, big.Sub(amount, balance.Available))
 }
 
 // PublishDeals publishes storage deals on chain
 func (s *StorageProviderNodeConnector) PublishDeals(ctx context.Context, deal storagemarket.MinerDeal) (storagemarket.DealID, cid.Cid, error) {
-	sig := types.Signature(deal.Proposal.ProposerSignature.Data)
-
-	fcStorageProposal := types.StorageDealProposal{
-		PieceRef:  deal.Proposal.PieceRef,
-		PieceSize: types.Uint64(deal.Proposal.PieceSize),
-
-		Client:   deal.Proposal.Client,
-		Provider: deal.Proposal.Provider,
-
-		ProposalExpiration: types.Uint64(deal.Proposal.ProposalExpiration),
-		Duration:           types.Uint64(deal.Proposal.Duration),
-
-		StoragePricePerEpoch: types.Uint64(deal.Proposal.StoragePricePerEpoch.Uint64()),
-		StorageCollateral:    types.Uint64(deal.Proposal.StorageCollateral.Uint64()),
-
-		ProposerSignature: &sig,
-	}
-	params, err := abi.ToEncodedValues([]types.StorageDealProposal{fcStorageProposal})
+	params := spasm.PublishStorageDealsParams{Deals: []spasm.ClientDealProposal{deal.ClientDealProposal}}
+	encoded := new(bytes.Buffer)
+	err := params.MarshalCBOR(encoded)
 	if err != nil {
 		return 0, cid.Undef, err
 	}
@@ -117,7 +104,7 @@ func (s *StorageProviderNodeConnector) PublishDeals(ctx context.Context, deal st
 		types.NewGasUnits(300),
 		true,
 		fcsm.PublishStorageDeals,
-		params,
+		encoded,
 	)
 	if err != nil {
 		return 0, cid.Undef, err
@@ -128,7 +115,7 @@ func (s *StorageProviderNodeConnector) PublishDeals(ctx context.Context, deal st
 		return 0, cid.Undef, err
 	}
 
-	dealIDValues, err := abi.Deserialize(receipt.Return[0], abi.UintArray)
+	dealIDValues, err := fcabi.Deserialize(receipt.Return[0], fcabi.UintArray)
 	if err != nil {
 		return 0, cid.Undef, err
 	}
@@ -151,11 +138,11 @@ func (s *StorageProviderNodeConnector) ListProviderDeals(ctx context.Context, ad
 }
 
 // OnDealComplete adds the piece to the storage provider
-func (s *StorageProviderNodeConnector) OnDealComplete(ctx context.Context, deal storagemarket.MinerDeal, pieceSize uint64, pieceReader io.Reader) error {
+func (s *StorageProviderNodeConnector) OnDealComplete(ctx context.Context, deal storagemarket.MinerDeal, pieceSize abi.UnpaddedPieceSize, pieceReader io.Reader) error {
 	// TODO: storage provider is expecting a sector ID here. This won't work. The sector ID needs to be removed from
 	// TODO: the return value, and storage provider needs to call OnDealSectorCommitted which should add Sector ID to its
 	// TODO: callback.
-	return s.pieceManager.SealPieceIntoNewSector(ctx, deal.DealID, pieceSize, pieceReader)
+	return s.pieceManager.SealPieceIntoNewSector(ctx, deal.DealID, uint64(pieceSize), pieceReader)
 }
 
 // LocatePieceForDealWithinSector finds the sector, offset and length of a piece associated with the given deal id

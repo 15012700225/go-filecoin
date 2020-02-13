@@ -1,12 +1,16 @@
 package storageminerconnector
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"math"
 
 	"github.com/filecoin-project/go-address"
+	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-storage-miner"
+	"github.com/filecoin-project/specs-actors/actors/abi"
+	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	"golang.org/x/xerrors"
@@ -17,10 +21,9 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/chain"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/chainsampler"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/consensus"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/message"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
+	fcabi "github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
 	vmaddr "github.com/filecoin-project/go-filecoin/internal/pkg/vm/address"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/wallet"
@@ -123,34 +126,37 @@ func (m *StorageMinerNodeConnector) handleNewTipSet(ctx context.Context, previou
 
 // SendSelfDeals creates self-deals and sends them to the network.
 func (m *StorageMinerNodeConnector) SendSelfDeals(ctx context.Context, pieces ...storage.PieceInfo) (cid.Cid, error) {
-	proposals := make([]types.StorageDealProposal, len(pieces))
+	proposals := make([]market.ClientDealProposal, len(pieces))
+
 	for i, piece := range pieces {
-		proposals[i] = types.StorageDealProposal{
-			PieceRef:             piece.CommP[:],
-			PieceSize:            types.Uint64(piece.Size),
-			Client:               m.workerAddr,
-			Provider:             m.minerAddr,
-			ProposalExpiration:   math.MaxUint64,
-			Duration:             math.MaxUint64 / 2, // /2 because overflows
-			StoragePricePerEpoch: 0,
-			StorageCollateral:    0,
-			ProposerSignature:    nil,
+		proposals[i] = market.ClientDealProposal{
+			Proposal: market.DealProposal{
+				PieceCID:             commcid.PieceCommitmentV1ToCID(piece.CommP[:]),
+				PieceSize:            abi.PaddedPieceSize(piece.Size),
+				Client:               m.workerAddr,
+				Provider:             m.minerAddr,
+				StartEpoch:           0, // TODO: Does this have to be set to current height?
+				EndEpoch:             math.MaxUint64,
+				StoragePricePerEpoch: abi.NewTokenAmount(0),
+				ProviderCollateral:   abi.NewTokenAmount(0),
+				ClientCollateral:     abi.NewTokenAmount(0),
+			},
+			ClientSignature: nil,
+		}
+		buf := new(bytes.Buffer)
+		if err := proposals[i].Proposal.MarshalCBOR(buf); err != nil {
+			return cid.Undef, err
 		}
 
-		proposalBytes, err := encoding.Encode(proposals[i])
+		sig, err := m.wallet.SignBytesV2(buf.Bytes(), m.workerAddr)
 		if err != nil {
 			return cid.Undef, err
 		}
 
-		sig, err := m.wallet.SignBytes(proposalBytes, m.workerAddr)
-		if err != nil {
-			return cid.Undef, err
-		}
-
-		proposals[i].ProposerSignature = &sig
+		proposals[i].ClientSignature = *sig
 	}
 
-	dealParams, err := abi.ToEncodedValues(proposals)
+	dealParams, err := fcabi.ToEncodedValues(proposals)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -201,7 +207,7 @@ func (m *StorageMinerNodeConnector) WaitForSelfDeals(ctx context.Context, mcid c
 			return nil, receipt.ExitCode, nil
 		}
 
-		dealIDValues, err := abi.Deserialize(receipt.Return[0], abi.UintArray)
+		dealIDValues, err := fcabi.Deserialize(receipt.Return[0], fcabi.UintArray)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -235,7 +241,7 @@ func (m *StorageMinerNodeConnector) SendPreCommitSector(ctx context.Context, sec
 		DealIDs:   dealIds,
 	}
 
-	precommitParams, err := abi.ToEncodedValues(info)
+	precommitParams, err := fcabi.ToEncodedValues(info)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -284,7 +290,7 @@ func (m *StorageMinerNodeConnector) SendProveCommitSector(ctx context.Context, s
 		DealIDs:  dealIds,
 	}
 
-	commitParams, err := abi.ToEncodedValues(info)
+	commitParams, err := fcabi.ToEncodedValues(info)
 	if err != nil {
 		return cid.Undef, err
 	}

@@ -201,8 +201,6 @@ func (av *Value) String() string {
 		return fmt.Sprint(av.Val.(types.PowerReport))
 	case FaultReport:
 		return fmt.Sprint(av.Val.(types.FaultReport))
-	case StorageDealProposals:
-		return fmt.Sprint(av.Val.([]types.StorageDealProposal))
 	case SectorPreCommitInfo:
 		return fmt.Sprint(av.Val.(types.SectorPreCommitInfo))
 	case SectorProveCommitInfo:
@@ -387,12 +385,6 @@ func (av *Value) Serialize() ([]byte, error) {
 			return nil, &typeError{types.FaultReport{}, av.Val}
 		}
 		return encoding.Encode(fr)
-	case StorageDealProposals:
-		sdp, ok := av.Val.([]types.StorageDealProposal)
-		if !ok {
-			return nil, &typeError{[]types.StorageDealProposal{}, av.Val}
-		}
-		return encoding.Encode(sdp)
 	case SectorPreCommitInfo:
 		spci, ok := av.Val.(types.SectorPreCommitInfo)
 		if !ok {
@@ -468,8 +460,6 @@ func ToValues(i []interface{}) ([]*Value, error) {
 			out = append(out, &Value{Type: PowerReport, Val: v})
 		case types.FaultReport:
 			out = append(out, &Value{Type: FaultReport, Val: v})
-		case []types.StorageDealProposal:
-			out = append(out, &Value{Type: StorageDealProposals, Val: v})
 		case types.SectorPreCommitInfo:
 			out = append(out, &Value{Type: SectorPreCommitInfo, Val: v})
 		case types.SectorProveCommitInfo:
@@ -674,16 +664,6 @@ func Deserialize(data []byte, t Type) (*Value, error) {
 			Type: t,
 			Val:  fr,
 		}, nil
-	case StorageDealProposals:
-		var sdp []types.StorageDealProposal
-		err := encoding.Decode(data, sdp)
-		if err != nil {
-			return nil, err
-		}
-		return &Value{
-			Type: t,
-			Val:  sdp,
-		}, nil
 	case SectorPreCommitInfo:
 		var spci types.SectorPreCommitInfo
 		err := encoding.Decode(data, &spci)
@@ -736,7 +716,6 @@ var typeTable = map[Type]reflect.Type{
 	FaultSet:              reflect.TypeOf(types.FaultSet{}),
 	PowerReport:           reflect.TypeOf(types.PowerReport{}),
 	FaultReport:           reflect.TypeOf(types.FaultReport{}),
-	StorageDealProposals:  reflect.TypeOf([]types.StorageDealProposal{}),
 	SectorPreCommitInfo:   reflect.TypeOf(types.SectorPreCommitInfo{}),
 	SectorProveCommitInfo: reflect.TypeOf(types.SectorProveCommitInfo{}),
 }

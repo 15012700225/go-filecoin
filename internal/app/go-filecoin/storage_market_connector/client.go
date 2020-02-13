@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"context"
 
-	smcborutil "github.com/filecoin-project/go-cbor-util"
+	"github.com/filecoin-project/specs-actors/actors/abi"
+	"github.com/filecoin-project/specs-actors/actors/abi/big"
+	"github.com/filecoin-project/specs-actors/actors/builtin/market"
 	"github.com/ipfs/go-cid"
 	xerrors "github.com/pkg/errors"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
-	fcsm "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
 	spaminer "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	spapow "github.com/filecoin-project/specs-actors/actors/builtin/power"
 
-	"github.com/filecoin-project/go-fil-markets/shared/tokenamount"
-	smtypes "github.com/filecoin-project/go-fil-markets/shared/types"
+	fcabi "github.com/filecoin-project/go-filecoin/internal/pkg/vm/abi"
+	fcsm "github.com/filecoin-project/go-filecoin/internal/pkg/vm/actor/builtin/storagemarket"
+
 	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/ipfs/go-hamt-ipld"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -55,12 +56,12 @@ func NewStorageClientNodeConnector(
 }
 
 // AddFunds sends a message to add collateral for the given address
-func (s *StorageClientNodeConnector) AddFunds(ctx context.Context, addr address.Address, amount tokenamount.TokenAmount) error {
+func (s *StorageClientNodeConnector) AddFunds(ctx context.Context, addr address.Address, amount abi.TokenAmount) error {
 	return s.addFunds(ctx, s.clientAddr, addr, amount)
 }
 
 // EnsureFunds checks the current balance for an address and adds funds if the balance is below the given amount
-func (s *StorageClientNodeConnector) EnsureFunds(ctx context.Context, addr address.Address, amount tokenamount.TokenAmount) error {
+func (s *StorageClientNodeConnector) EnsureFunds(ctx context.Context, addr address.Address, amount abi.TokenAmount) error {
 	balance, err := s.GetBalance(ctx, addr)
 	if err != nil {
 		return err
@@ -70,7 +71,7 @@ func (s *StorageClientNodeConnector) EnsureFunds(ctx context.Context, addr addre
 		return nil
 	}
 
-	return s.AddFunds(ctx, addr, tokenamount.Sub(amount, balance.Available))
+	return s.AddFunds(ctx, addr, big.Sub(amount, balance.Available))
 }
 
 // ListClientDeals returns all deals published on chain for the given account
@@ -156,49 +157,48 @@ func (s *StorageClientNodeConnector) ValidatePublishedDeal(ctx context.Context, 
 		return 0, xerrors.Errorf("deal publish message called incorrect method (method=%s)", unsigned.Method)
 	}
 
-	values, err := abi.DecodeValues(unsigned.Params, []abi.Type{abi.StorageDealProposals})
+	// TODO: Deserialize PublishStorageDealsParams instead of this
+	values, err := fcabi.DecodeValues(unsigned.Params, []fcabi.Type{fcabi.StorageDealProposals})
 	if err != nil {
 		return 0, err
 	}
 
-	msgProposals := values[0].Val.([]types.StorageDealProposal)
+	msgProposals := values[0].Val.([]market.ClientDealProposal)
 
-	proposal := msgProposals[0] // TODO: Support more than one deal
+	for idx, proposal := range msgProposals {
+		if proposal.Proposal == deal.Proposal {
+			sectorIDVal, err := fcabi.Deserialize(chnMsg.Receipt.Return[idx], fcabi.SectorID)
+			if err != nil {
+				return 0, err
+			}
 
-	// TODO: find a better way to do this
-	equals := bytes.Equal(proposal.PieceRef, deal.Proposal.PieceRef) &&
-		uint64(proposal.PieceSize) == deal.Proposal.PieceSize &&
-		//proposal.Client == deal.Proposal.Client &&
-		//proposal.Provider == deal.Proposal.Provider &&
-		uint64(proposal.ProposalExpiration) == deal.Proposal.ProposalExpiration &&
-		uint64(proposal.Duration) == deal.Proposal.Duration &&
-		uint64(proposal.StoragePricePerEpoch) == deal.Proposal.StoragePricePerEpoch.Uint64() &&
-		uint64(proposal.StorageCollateral) == deal.Proposal.StorageCollateral.Uint64() &&
-		bytes.Equal([]byte(*proposal.ProposerSignature), deal.Proposal.ProposerSignature.Data)
-
-	if equals {
-		sectorIDVal, err := abi.Deserialize(chnMsg.Receipt.Return[0], abi.SectorID)
-		if err != nil {
-			return 0, err
+			sectorID, ok := sectorIDVal.Val.(uint64)
+			if !ok {
+				return 0, xerrors.New("publish deal return is not a sector ID")
+			}
+			return sectorID, nil
 		}
-
-		sectorID, ok := sectorIDVal.Val.(uint64)
-		if !ok {
-			return 0, xerrors.New("publish deal return is not a sector ID")
-		}
-		return sectorID, nil
 	}
 
 	return 0, xerrors.Errorf("published deal does not match ClientDeal")
 }
 
 // SignProposal uses the local wallet to sign the given proposal
-func (s *StorageClientNodeConnector) SignProposal(ctx context.Context, signer address.Address, proposal *storagemarket.StorageDealProposal) error {
-	signFn := func(ctx context.Context, data []byte) (*smtypes.Signature, error) {
-		return s.SignBytes(ctx, signer, data)
+func (s *StorageClientNodeConnector) SignProposal(ctx context.Context, signer address.Address, proposal market.DealProposal) (*market.ClientDealProposal, error) {
+	buf := new(bytes.Buffer)
+	if err := proposal.MarshalCBOR(buf); err != nil {
+		return nil, err
 	}
 
-	return proposal.Sign(ctx, signFn)
+	signature, err := s.SignBytes(ctx, signer, buf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return &market.ClientDealProposal{
+		Proposal:        proposal,
+		ClientSignature: *signature,
+	}, nil
 }
 
 // GetDefaultWalletAddress returns the default account for this node
@@ -207,14 +207,15 @@ func (s *StorageClientNodeConnector) GetDefaultWalletAddress(ctx context.Context
 }
 
 // ValidateAskSignature ensures the given ask has been signed correctly
-func (s *StorageClientNodeConnector) ValidateAskSignature(signed *smtypes.SignedStorageAsk) error {
+func (s *StorageClientNodeConnector) ValidateAskSignature(signed *storagemarket.SignedStorageAsk) error {
 	ask := signed.Ask
-	data, err := smcborutil.Dump(ask)
-	if err != nil {
+
+	buf := new(bytes.Buffer)
+	if err := ask.MarshalCBOR(buf); err != nil {
 		return err
 	}
 
-	if types.IsValidSignature(data, ask.Miner, signed.Signature.Data) {
+	if s.VerifySignature(*signed.Signature, ask.Miner, buf.Bytes()) {
 		return nil
 	}
 
