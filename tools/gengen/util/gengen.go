@@ -143,11 +143,11 @@ func GenGen(ctx context.Context, cfg *GenesisCfg, cst cbor.IpldStore, bs blockst
 		return nil, err
 	}
 
+
 	err = store.Flush()
 	if err != nil {
 		return nil, err
 	}
-
 	stateRoot, err := st.Flush(ctx)
 	if err != nil {
 		return nil, err
@@ -277,11 +277,12 @@ func setupMiners(vm consensus.GenesisVM, st state.Tree, keys []*types.KeyInfo, m
 		}
 
 		// give collateral to account actor
+		fmt.Printf("give collateral\n")
 		_, err = vm.ApplyGenesisMessage(vmaddr.LegacyNetworkAddress, addr, types.SendMethodID, abi.NewTokenAmount(100000), nil)
 		if err != nil {
 			return nil, err
 		}
-
+		fmt.Printf("give createstorageminer\n")
 		ret, err := vm.ApplyGenesisMessage(addr, vmaddr.StoragePowerAddress, power.CreateStorageMiner, abi.NewTokenAmount(100000), power.CreateStorageMinerParams{
 			OwnerAddr:  addr,
 			WorkerAddr: addr,
@@ -304,7 +305,7 @@ func setupMiners(vm consensus.GenesisVM, st state.Tree, keys []*types.KeyInfo, m
 		// add power directly to power table
 		for i := uint64(0); i < m.NumCommittedSectors; i++ {
 			powerReport := types.NewPowerReport(m.SectorSize*m.NumCommittedSectors, 0)
-
+			fmt.Printf("power report\n")
 			_, err := vm.ApplyGenesisMessage(addr, vmaddr.StoragePowerAddress, power.ProcessPowerReport, abi.NewTokenAmount(0), power.ProcessPowerReportParams{
 				Report:     powerReport,
 				UpdateAddr: mIDAddr,
