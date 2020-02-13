@@ -116,7 +116,11 @@ func (l *lookup) Find(ctx context.Context, k string, out interface{}) error {
 
 // Set adds a value under the given key
 func (l *lookup) Set(ctx context.Context, k string, v interface{}) error {
-	return l.n.Set(ctx, k, v)
+	bs, err := encoding.Encode(v)
+	if err != nil {
+		return err
+	}
+	return l.n.SetRaw(ctx, k, bs)
 }
 
 // Delete removes a key value from the lookup

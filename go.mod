@@ -125,3 +125,5 @@ require (
 )
 
 replace github.com/filecoin-project/filecoin-ffi => ./vendors/filecoin-ffi
+
+replace github.com/ipfs/go-hamt-ipld => /Users/zenground0/Ground/go/src/github.com/ipfs/go-hamt-ipld

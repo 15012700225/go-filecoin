@@ -161,7 +161,6 @@ func (s *VMStorage) toNode(v interface{}) (ipld.Node, error) {
 		nd, err = cbor.DecodeBlock(blk)
 	} else if raw, ok := v.([]byte); ok {
 		nd, err = cbor.Decode(raw, types.DefaultHashFunction, -1)
-
 	} else if cm, ok := v.(cbg.CBORMarshaler); ok {
 		// TODO: Remote this clause once
 		// https://github.com/ipfs/go-ipld-cbor/pull/64
