@@ -2,7 +2,6 @@ package actor
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	block "github.com/ipfs/go-block-format"
@@ -121,19 +120,11 @@ func (l *lookup) Find(ctx context.Context, k string, out interface{}) error {
 
 // Set adds a value under the given key
 func (l *lookup) Set(ctx context.Context, k string, v interface{}) error {
-
 	bs, err := encoding.Encode(v)
 	if err != nil {
-		fmt.Printf("yo error here\n")
 		return err
 	}
-	fmt.Printf("setting this thing %v, type %T, bs: %x\n", v, v, bs)
-	err = l.n.SetRaw(ctx, k, bs)
-	if err != nil {
-		fmt.Printf("yo error here 2\n")
-	}
-	return err
-//	return l.n.Set(ctx, k, v)
+	return l.n.SetRaw(ctx, k, bs)
 }
 
 // Delete removes a key value from the lookup

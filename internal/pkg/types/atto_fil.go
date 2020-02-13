@@ -8,33 +8,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-leb128"
 	"github.com/filecoin-project/specs-actors/actors/abi"
 	specsbig "github.com/filecoin-project/specs-actors/actors/abi/big"
-	"github.com/polydawn/refmt/obj/atlas"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(attoFILAtlasEntry)
-}
 
 var attoPower = 18
 var tenToTheEighteen = big.NewInt(10).Exp(big.NewInt(10), big.NewInt(18), nil)
 
 // ZeroAttoFIL is the zero value for an AttoFIL, exported for consistency in construction of AttoFILs
 var ZeroAttoFIL AttoFIL
-
-var attoFILAtlasEntry = atlas.BuildEntry(AttoFIL{}).Transform().
-	TransformMarshal(atlas.MakeMarshalTransformFunc(
-		func(a AttoFIL) ([]byte, error) {
-			return a.Bytes(), nil
-		})).
-	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
-		func(x []byte) (AttoFIL, error) {
-			return NewAttoFILFromBytes(x), nil
-		})).
-	Complete()
 
 // UnmarshalJSON converts a byte array to an AttoFIL.
 func (z *AttoFIL) UnmarshalJSON(b []byte) error {

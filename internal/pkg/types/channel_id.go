@@ -4,25 +4,8 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-leb128"
-	"github.com/polydawn/refmt/obj/atlas"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(channelIDAtlasEntry)
-}
-
-var channelIDAtlasEntry = atlas.BuildEntry(ChannelID{}).Transform().
-	TransformMarshal(atlas.MakeMarshalTransformFunc(
-		func(i ChannelID) ([]byte, error) {
-			return i.Bytes(), nil
-		})).
-	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
-		func(x []byte) (ChannelID, error) {
-			return *NewChannelIDFromBytes(x), nil
-		})).
-	Complete()
 
 // UnmarshalJSON converts a byte array to a ChannelID.
 func (z *ChannelID) UnmarshalJSON(b []byte) error {

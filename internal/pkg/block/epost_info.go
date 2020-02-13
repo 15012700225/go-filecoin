@@ -2,14 +2,8 @@ package block
 
 import (
 	ffi "github.com/filecoin-project/filecoin-ffi"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/types"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(EPoStCandidate{})
-	encoding.RegisterIpldCborType(EPoStInfo{})
-}
 
 // EPoStInfo wraps all data needed to verify an election post proof
 type EPoStInfo struct {

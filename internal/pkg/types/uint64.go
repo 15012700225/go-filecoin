@@ -8,27 +8,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-leb128"
 	fbig "github.com/filecoin-project/specs-actors/actors/abi/big"
-	"github.com/polydawn/refmt/obj/atlas"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(uint64AtlasEntry)
-}
-
-var uint64AtlasEntry = atlas.BuildEntry(Uint64(0)).Transform().
-	TransformMarshal(atlas.MakeMarshalTransformFunc(
-		func(u Uint64) ([]byte, error) {
-			return encoding.Encode(u)
-		})).
-	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
-		func(x []byte) (Uint64, error) {
-			var aux Uint64
-			if err := encoding.Decode(x, &aux); err != nil {
-				return aux, err
-			}
-			return aux, nil
-		})).
-	Complete()
 
 // Uint64 is an unsigned 64-bit variable-length-encoded integer.
 type Uint64 uint64

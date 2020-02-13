@@ -4,30 +4,8 @@ import (
 	"fmt"
 
 	"github.com/Workiva/go-datastructures/bitarray"
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-filecoin/internal/pkg/rleplus"
-	"github.com/polydawn/refmt/obj/atlas"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(intSetAtlasEntry)
-}
-
-var intSetAtlasEntry = atlas.BuildEntry(IntSet{}).Transform().
-	TransformMarshal(atlas.MakeMarshalTransformFunc(
-		func(is IntSet) ([]byte, error) {
-			bytes, _, err := rleplus.Encode(is.Values())
-			return bytes, err
-		})).
-	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
-		func(x []byte) (IntSet, error) {
-			ints, err := rleplus.Decode(x)
-			if err != nil {
-				return EmptyIntSet(), err
-			}
-			return NewIntSet(ints...), nil
-		})).
-	Complete()
 
 // IntSet is a space-efficient set of uint64
 type IntSet struct {

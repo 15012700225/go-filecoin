@@ -111,14 +111,11 @@ func (vm *VM) ApplyGenesisMessage(from address.Address, to address.Address, meth
 		params: encodedParams,
 	}
 
-	fmt.Printf("apply implicit msg\n")
 	ret, err := vm.applyImplicitMessage(imsg)
 	if err != nil {
 		return ret, err
 	}
-	fmt.Printf("done implicit msg\n")	
 
-	fmt.Printf("committing\n")
 	// commit state
 	// flush all objects out
 	if err := vm.store.Flush(); err != nil {
@@ -129,7 +126,6 @@ func (vm *VM) ApplyGenesisMessage(from address.Address, to address.Address, meth
 		return nil, err
 	}
 	// TODO: update state root (issue: #3718)
-	fmt.Printf("done committing\n")
 	return ret, nil
 }
 

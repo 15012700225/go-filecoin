@@ -22,11 +22,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/storage"
 )
 
-func init() {
-	encoding.RegisterIpldCborType(State{})
-	encoding.RegisterIpldCborType(TableEntry{})
-}
-
 // Actor provides bookkeeping for the storage power of registered miners.
 // It updates power based on faults and storage proofs.
 // It also tracks pledge collateral conditions.

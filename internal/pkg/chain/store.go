@@ -22,10 +22,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/state"
 )
 
-func init() {
-	encoding.RegisterIpldCborType(tsState{})
-}
-
 // NewHeadTopic is the topic used to publish new heads.
 const NewHeadTopic = "new-head"
 

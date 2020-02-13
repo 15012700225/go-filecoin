@@ -9,10 +9,10 @@ import (
 // https://github.com/filecoin-project/specs/blob/master/data-structures.md#faultset
 type FaultSet struct {
 	// Offset is the offset from the start of the proving period, currently unused
-	Offset uint64 `json:"offset,omitempty" refmt:"idx"`
+	Offset uint64 `json:"offset,omitempty"`
 
 	// SectorIds are the faulted sectors
-	SectorIds IntSet `json:"sectorIds" refmt:"ids"`
+	SectorIds IntSet `json:"sectorIds"`
 }
 
 // NewFaultSet constructs a FaultSet from a slice of sector ids that have faulted

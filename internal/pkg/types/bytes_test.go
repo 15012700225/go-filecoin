@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-	cbor "github.com/ipfs/go-ipld-cbor"
-
 	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	tf "github.com/filecoin-project/go-filecoin/internal/pkg/testhelpers/testflags"
 	"github.com/stretchr/testify/assert"
@@ -16,10 +14,10 @@ func TestRoundtrip(t *testing.T) {
 
 	cases := [][]byte{nil, {}, []byte("bytes")}
 	for _, c := range cases {
-		b, err := cbor.WrapObject(c, DefaultHashFunction, -1)
+		raw, err := encoding.Encode(c)
 		assert.NoError(t, err)
 		var out []byte
-		err = encoding.Decode(b.RawData(), &out)
+		err = encoding.Decode(raw, &out)
 		assert.NoError(t, err)
 		switch {
 		case c == nil:

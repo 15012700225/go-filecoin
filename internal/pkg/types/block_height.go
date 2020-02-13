@@ -4,25 +4,8 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
 	"github.com/filecoin-project/go-leb128"
-	"github.com/polydawn/refmt/obj/atlas"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(blockHeightAtlasEntry)
-}
-
-var blockHeightAtlasEntry = atlas.BuildEntry(BlockHeight{}).Transform().
-	TransformMarshal(atlas.MakeMarshalTransformFunc(
-		func(i BlockHeight) ([]byte, error) {
-			return i.Bytes(), nil
-		})).
-	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
-		func(x []byte) (BlockHeight, error) {
-			return *NewBlockHeightFromBytes(x), nil
-		})).
-	Complete()
 
 // UnmarshalJSON converts a byte array to a BlockHeight.
 func (z *BlockHeight) UnmarshalJSON(b []byte) error {

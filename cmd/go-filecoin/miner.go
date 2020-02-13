@@ -540,7 +540,6 @@ var minerWorkerAddressCmd = &cmds.Command{
 		}
 
 		res := MinerWorkerResult{WorkerAddress: workerAddr}
-		fmt.Printf("workerAddr: %s", res.WorkerAddress)
 		return re.Emit(&res)
 	},
 	Type: &MinerWorkerResult{},

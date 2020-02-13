@@ -6,7 +6,6 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/specs-actors/actors/abi"
-	cbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 
@@ -20,10 +19,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/internal/pkg/vm/internal/runtime"
 	specsbig "github.com/filecoin-project/specs-actors/actors/abi/big"
 )
-
-func init() {
-	encoding.RegisterIpldCborType(cbor.BigIntAtlasEntry)
-}
 
 // Actor is the miner actor.
 //

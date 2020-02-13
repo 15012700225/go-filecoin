@@ -1,11 +1,5 @@
 package types
 
-import "github.com/filecoin-project/go-filecoin/internal/pkg/encoding"
-
-func init() {
-	encoding.RegisterIpldCborType(PowerReport{})
-}
-
 // PowerReport reports new miner power values
 type PowerReport struct {
 	ActivePower   *BytesAmount

@@ -71,7 +71,6 @@ func (ctx *invocationContext) invoke() interface{} {
 	// 4. short-circuit _Send_ method
 	// 5. load target actor code
 	// 6. create target state handle
-	fmt.Printf("begin invoke\n")
 	// assert from address is an ID address.
 	if ctx.msg.from.Protocol() != address.ID {
 		panic("bad code: sender address MUST be an ID address at invocation time")
@@ -86,10 +85,8 @@ func (ctx *invocationContext) invoke() interface{} {
 
 	// 3. transfer funds carried by the msg
 	ctx.rt.transfer(ctx.msg.from, ctx.msg.to, ctx.msg.value)
-	fmt.Printf("sending\n")
 
 	// 4. if we are just sending funds, there is nothing else to do.
-	fmt.Printf("msg.method: %v, sendmethodid: %v\n", ctx.msg.method, types.SendMethodID)
 	if ctx.msg.method == types.SendMethodID {
 		return message.Ok().WithGas(ctx.gasTank.GasConsumed())
 	}
@@ -98,14 +95,12 @@ func (ctx *invocationContext) invoke() interface{} {
 	actorImpl := ctx.rt.getActorImpl(ctx.toActor.Code.Cid)
 
 	// 6. create target state handle
-	fmt.Printf("create state handle\n")
 	stateHandle := newActorStateHandle((*stateHandleContext)(ctx), ctx.toActor.Head.Cid)
 	ctx.stateHandle = &stateHandle
 
 	// dispatch
 	// Dragons: uncomment and send this over when we delete the existing actors and bring the new ones
 	// adapter := adapter.NewAdapter(ctx)
-	fmt.Printf("createhandle\n")
 	out, err := actorImpl.Dispatch(ctx.msg.method, ctx, ctx.msg.params)
 	if err != nil {
 		// Dragons: this could be a deserialization error too
